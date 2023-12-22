@@ -1,0 +1,7 @@
+sync-config.yaml
+docker-compose.yaml
+.sync_ignore
+.env
+img_gis_map_info_golang/
+.sync_temp/
+.ssh/
