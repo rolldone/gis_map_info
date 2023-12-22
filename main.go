@@ -11,6 +11,8 @@ func main() {
 	// Initialize Gin's default router
 	router := gin.Default()
 
+	router.Use(gin.Logger())
+
 	// Define a route handler
 	router.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -27,23 +29,26 @@ func main() {
 			admin.GET("/dashboard/rdtr-periode", gin.HandlerFunc(dashboard.GetRdtrPeriode))
 			admin.GET("/dashboard/rtrw-periode", gin.HandlerFunc(dashboard.GetRtrwPeriode))
 
-			admin.GET("/rdtr/rdtrs", AdminController.GetRdtrs)
-			admin.GET("/rdtr/:uuid/view", AdminController.GetRdtrByUUId)
-			admin.POST("/rdtr/new", AdminController.AddRdtr)
-			admin.POST("/rdtr/update", AdminController.UpdateRdtr)
-			admin.POST("/rdtr/delete", AdminController.DeleteRdtr)
+			rdtrController := &AdminController.RdtrController{}
+			admin.GET("/rdtr/rdtrs", rdtrController.GetRdtrs)
+			admin.GET("/rdtr/:uuid/view", rdtrController.GetRdtrByUUId)
+			admin.POST("/rdtr/new", rdtrController.AddRdtr)
+			admin.POST("/rdtr/update", rdtrController.UpdateRdtr)
+			admin.POST("/rdtr/delete", rdtrController.DeleteRdtr)
 
-			admin.GET("/rtrw/rtrws", AdminController.GetRtrws)
-			admin.GET("/rtrw/:uuid/view", AdminController.GetRtrwByUUId)
-			admin.POST("/rtrw/new", AdminController.AddRtrw)
-			admin.POST("/rtrw/update", AdminController.UpdateRtrw)
-			admin.POST("/rtrw/delete", AdminController.DeleteRtrw)
+			rtrwController := &AdminController.RtrwController{}
+			admin.GET("/rtrw/rtrws", rtrwController.GetRtrws)
+			admin.GET("/rtrw/:uuid/view", rtrwController.GetRtrwByUUId)
+			admin.POST("/rtrw/new", rtrwController.AddRtrw)
+			admin.POST("/rtrw/update", rtrwController.UpdateRtrw)
+			admin.POST("/rtrw/delete", rtrwController.DeleteRtrw)
 
-			admin.GET("/zlp/zlps", AdminController.GetZLPs)
-			admin.GET("/zlp/:uuid/view", AdminController.GetZLPByUUId)
-			admin.POST("/zlp/new", AdminController.AddZLP)
-			admin.POST("/zlp/update", AdminController.UpdateZLP)
-			admin.POST("/zlp/delete", AdminController.DeleteZLP)
+			zlpController := &AdminController.ZLPController{}
+			admin.GET("/zlp/zlps", zlpController.GetZLPs)
+			admin.GET("/zlp/:uuid/view", zlpController.GetZLPByUUId)
+			admin.POST("/zlp/new", zlpController.AddZLP)
+			admin.POST("/zlp/update", zlpController.UpdateZLP)
+			admin.POST("/zlp/delete", zlpController.DeleteZLP)
 
 		}
 

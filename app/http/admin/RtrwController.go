@@ -2,22 +2,24 @@ package admin
 
 import "github.com/gin-gonic/gin"
 
-func GetRtrws(ctx *gin.Context) {
+type RtrwController struct{}
+
+func (a *RtrwController) GetRtrws(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"message": "GetRtrws endpoint"})
 }
 
-func GetRtrwByUUId(ctx *gin.Context) {
+func (a *RtrwController) GetRtrwByUUId(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"message": "GetRtrws endpoint"})
 }
 
-func AddRtrw(ctx *gin.Context) {
+func (a *RtrwController) AddRtrw(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"message": "GetRtrws endpoint"})
 }
 
-func UpdateRtrw(ctx *gin.Context) {
+func (a *RtrwController) UpdateRtrw(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"message": "GetRtrws endpoint"})
 }
 
-func DeleteRtrw(ctx *gin.Context) {
+func (a *RtrwController) DeleteRtrw(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"message": "GetRtrws endpoint"})
 }

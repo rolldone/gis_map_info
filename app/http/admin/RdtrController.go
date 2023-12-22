@@ -4,22 +4,24 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func GetRdtrs(ctx *gin.Context) {
+type RdtrController struct{}
+
+func (a *RdtrController) GetRdtrs(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"message": "GetRdtrs endpoint"})
 }
 
-func GetRdtrByUUId(ctx *gin.Context) {
+func (a *RdtrController) GetRdtrByUUId(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"message": "GetRdtrs endpoint"})
 }
 
-func AddRdtr(ctx *gin.Context) {
+func (a *RdtrController) AddRdtr(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"message": "GetRdtrs endpoint"})
 }
 
-func UpdateRdtr(ctx *gin.Context) {
+func (a *RdtrController) UpdateRdtr(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"message": "GetRdtrs endpoint"})
 }
 
-func DeleteRdtr(ctx *gin.Context) {
+func (a *RdtrController) DeleteRdtr(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"message": "GetRdtrs endpoint"})
 }
