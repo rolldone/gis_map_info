@@ -4,5 +4,5 @@ if [ "$1" = "make" ]; then
 fi
 
 if [ "$1" = "migrate" ]; then
-    migrate "$2"
+    migrate -database "postgres://root:43lw9rj2@postgres:5432/gis_map_info_db?query&sslmode=disable" -path db/migrations "$2"
 fi
