@@ -3,11 +3,16 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 
+	"gis_map_info/app"
 	AdminController "gis_map_info/app/http/admin"
 	FrontController "gis_map_info/app/http/front"
 )
 
 func main() {
+
+	app.Install()
+
+	return
 	// Initialize Gin's default router
 	router := gin.Default()
 

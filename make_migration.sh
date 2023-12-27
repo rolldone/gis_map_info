@@ -4,5 +4,16 @@ if [ "$1" = "make" ]; then
 fi
 
 if [ "$1" = "migrate" ]; then
-    migrate -database "postgres://root:43lw9rj2@postgres:5432/gis_map_info_db?query&sslmode=disable" -path db/migrations "$2"
+    # Load variables from .env file
+    source .env
+    # $2 is up or down
+    if [ "$2" = "down" ]; then
+        if [ "$3" = "all" ]; then
+        migrate -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?query&sslmode=$DB_SSLMODE" -path db/migrations down
+        else
+        migrate -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?query&sslmode=$DB_SSLMODE" -path db/migrations down 1
+        fi
+    elif [ "$2" = "up" ]; then
+        migrate -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?query&sslmode=$DB_SSLMODE" -path db/migrations up
+    fi
 fi
