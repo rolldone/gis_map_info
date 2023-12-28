@@ -5,3 +5,4 @@ docker-compose.yaml
 img_gis_map_info_golang/
 .sync_temp/
 .ssh/
+img_gis_map_info_postgis/

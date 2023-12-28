@@ -16,6 +16,6 @@ type RegDistrict struct {
 }
 
 // Set the table name for the User model
-func (RegDistrict) TableName() string {
+func (c *RegDistrict) TableName() string {
 	return "reg_district" // Replace with your existing table name
 }

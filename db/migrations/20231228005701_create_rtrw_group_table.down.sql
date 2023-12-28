@@ -1,0 +1,1 @@
+DROP TABLE rtrw_group

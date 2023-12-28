@@ -15,10 +15,6 @@ type RegProvince struct {
 	// DeletedAt gorm.DeletedAt
 }
 
-type Tabler interface {
-	TableName() string
-}
-
 // Set the table name for the User model
 func (c *RegProvince) TableName() string {
 	return "reg_province" // Replace with your existing table name

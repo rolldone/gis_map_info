@@ -1,6 +1,6 @@
 module gis_map_info
 
-go 1.17
+go 1.21.5
 
 require (
 	github.com/bytedance/sonic v1.9.1 // indirect

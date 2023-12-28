@@ -12,7 +12,6 @@ func main() {
 
 	app.Install()
 
-	return
 	// Initialize Gin's default router
 	router := gin.Default()
 
@@ -35,8 +34,8 @@ func main() {
 			admin.GET("/dashboard/rtrw-periode", gin.HandlerFunc(dashboard.GetRtrwPeriode))
 
 			rdtrController := &AdminController.RdtrController{}
+			admin.GET("/rdtr/:id/view", rdtrController.GetRdtrById)
 			admin.GET("/rdtr/rdtrs", rdtrController.GetRdtrs)
-			admin.GET("/rdtr/:uuid/view", rdtrController.GetRdtrByUUId)
 			admin.POST("/rdtr/new", rdtrController.AddRdtr)
 			admin.POST("/rdtr/update", rdtrController.UpdateRdtr)
 			admin.POST("/rdtr/delete", rdtrController.DeleteRdtr)
