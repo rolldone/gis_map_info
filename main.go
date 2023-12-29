@@ -1,14 +1,17 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
-
 	"gis_map_info/app"
 	AdminController "gis_map_info/app/http/admin"
 	FrontController "gis_map_info/app/http/front"
+	Model "gis_map_info/app/model"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
+
+	Model.ConnectDatabase()
 
 	app.Install()
 
@@ -54,6 +57,11 @@ func main() {
 			admin.POST("/zlp/update", zlpController.UpdateZLP)
 			admin.POST("/zlp/delete", zlpController.DeleteZLP)
 
+			regLocationController := &AdminController.RegLocationController{}
+			admin.GET("/reg_location/province/provinces", regLocationController.GetProvinces)
+			admin.GET("/reg_location/regency/:province_id/regencies", regLocationController.GetRegencies)
+			admin.GET("/reg_location/district/:regency_id/districts", regLocationController.GetDistricts)
+			admin.GET("/reg_location/village/:district_id/districts", regLocationController.GetVillages)
 		}
 
 		// Front side

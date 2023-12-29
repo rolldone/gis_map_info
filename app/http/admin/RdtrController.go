@@ -68,7 +68,9 @@ func (a *RdtrController) GetRdtrById(ctx *gin.Context) {
 }
 
 func (a *RdtrController) AddRdtr(ctx *gin.Context) {
+	tx := Model.DB.Begin()
 	var RdtrService = Service.RdtrService{}
+	RdtrService.DB = tx
 	var props = map[string]interface{}{} // Bind the request body to the newUser struct
 	if err := ctx.ShouldBindJSON(&props); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -82,6 +84,31 @@ func (a *RdtrController) AddRdtr(ctx *gin.Context) {
 			"status_code": 500,
 			"return":      err.Error(),
 		})
+		tx.Rollback()
+		return
+	}
+	rdtrGroups, _ := props["rdtr_groups"].([]interface{})
+	if rdtrGroups == nil {
+		rdtrGroups = []interface{}{}
+	}
+	fmt.Println(rdtrGroups)
+	for i := 0; i < len(rdtrGroups); i++ {
+		rdtrGroupItem, _ := rdtrGroups[i].(map[string]interface{})
+		rdtrGroupItem["rdtr_id"] = rdtrData.Id
+		_, err2 := RdtrService.AddGroup(rdtrGroups[i])
+		if err2 != nil {
+			err = err2
+			break
+		}
+	}
+	if err != nil {
+		tx.Rollback()
+		fmt.Println("Error:", err)
+		ctx.JSON(500, gin.H{
+			"status":      "error",
+			"status_code": 500,
+			"return":      err.Error(),
+		})
 		return
 	}
 	ctx.JSON(200, gin.H{
@@ -89,10 +116,13 @@ func (a *RdtrController) AddRdtr(ctx *gin.Context) {
 		"status":      "success",
 		"status_code": 200,
 	})
+	tx.Commit()
 }
 
 func (a *RdtrController) UpdateRdtr(ctx *gin.Context) {
+	tx := Model.DB.Begin()
 	var RdtrService = Service.RdtrService{}
+	RdtrService.DB = tx
 	var props = map[string]interface{}{} // Bind the request body to the newUser struct
 	if err := ctx.ShouldBindJSON(&props); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -100,6 +130,31 @@ func (a *RdtrController) UpdateRdtr(ctx *gin.Context) {
 	}
 	rdtrData, err := RdtrService.Update(props)
 	if err != nil {
+		fmt.Println("Error:", err)
+		ctx.JSON(500, gin.H{
+			"status":      "error",
+			"status_code": 500,
+			"return":      err.Error(),
+		})
+		return
+	}
+	rdtrGroups, _ := props["rdtr_groups"].([]interface{})
+	if rdtrGroups == nil {
+		rdtrGroups = []interface{}{}
+	}
+	fmt.Println(rdtrGroups)
+	RdtrService.DeleteGroupByRdtrId(int(rdtrData.Id))
+	for i := 0; i < len(rdtrGroups); i++ {
+		rdtrGroupItem, _ := rdtrGroups[i].(map[string]interface{})
+		rdtrGroupItem["rdtr_id"] = rdtrData.Id
+		_, err2 := RdtrService.AddGroup(rdtrGroups[i])
+		if err2 != nil {
+			err = err2
+			break
+		}
+	}
+	if err != nil {
+		tx.Rollback()
 		fmt.Println("Error:", err)
 		ctx.JSON(500, gin.H{
 			"status":      "error",

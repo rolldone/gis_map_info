@@ -41,6 +41,7 @@ func ConnectDatabase() {
 	}
 
 	if DB == nil {
+		fmt.Println("DB is nil, and will initialize")
 		DB = database
 	}
 

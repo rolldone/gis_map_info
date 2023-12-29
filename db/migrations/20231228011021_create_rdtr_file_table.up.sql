@@ -1,5 +1,5 @@
 CREATE TABLE rdtr_file (
-    id BIGINT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     uuid VARCHAR(36) UNIQUE NULL,
     rdtr_group_id BIGINT,
     rdtr_id BIGINT,

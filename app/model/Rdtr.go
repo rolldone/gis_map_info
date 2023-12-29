@@ -2,7 +2,7 @@ package model
 
 type RdtrType struct {
 	Id             int64  `gorm:"primaryKey" json:"id,omitempty"`
-	Name           string `gorm:"varchar;column:name" json:"name"`
+	Name           string `gorm:"type:varchar(255);column:name" json:"name"`
 	RegProvince_id int64  `gorm:"type:uint;column:reg_province_id" json:"province_id"`
 	RegRegency_id  int64  `gorm:"type:uint;column:reg_regency_id" json:"regency_id"`
 	RegDistrict_id int64  `gorm:"type:uint;column:reg_district_id" json:"district_id"`

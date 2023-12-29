@@ -1,5 +1,5 @@
 CREATE TABLE rtrw_group (
-    id BIGINT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     rtrw_id BIGINT,
     properties JSONB,
     status VARCHAR(255),
