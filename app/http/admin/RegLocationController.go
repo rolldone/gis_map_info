@@ -39,9 +39,9 @@ func (c *RegLocationController) GetRegencies(ctx *gin.Context) {
 	regLocationService := Service.RegLocationService{
 		DB: tx,
 	}
-	province_id, err := strconv.Atoi(ctx.Param("province_id"))
+	province_id, err := strconv.Atoi(ctx.Query("reg_province_id"))
 	if err != nil {
-		fmt.Println("Error:", err)
+		fmt.Println("GetRegencies Error:", err)
 		ctx.JSON(500, gin.H{
 			"status":      "error",
 			"status_code": 500,
@@ -71,9 +71,9 @@ func (c *RegLocationController) GetDistricts(ctx *gin.Context) {
 	regLocationService := Service.RegLocationService{
 		DB: tx,
 	}
-	regency_id, err := strconv.Atoi(ctx.Param("regency_id"))
+	regency_id, err := strconv.Atoi(ctx.Query("reg_regency_id"))
 	if err != nil {
-		fmt.Println("Error:", err)
+		fmt.Println("GetDistricts Error:", err)
 		ctx.JSON(500, gin.H{
 			"status":      "error",
 			"status_code": 500,
@@ -103,9 +103,9 @@ func (c *RegLocationController) GetVillages(ctx *gin.Context) {
 	regLocationService := Service.RegLocationService{
 		DB: tx,
 	}
-	district_id, err := strconv.Atoi(ctx.Param("district_id"))
+	district_id, err := strconv.Atoi(ctx.Query("reg_district_id"))
 	if err != nil {
-		fmt.Println("Error:", err)
+		fmt.Println("GetVillages Error:", err)
 		ctx.JSON(500, gin.H{
 			"status":      "error",
 			"status_code": 500,

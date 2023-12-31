@@ -9,6 +9,23 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func CORSMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Credentials", "true")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Header("Access-Control-Allow-Methods", "POST,HEAD,PATCH, OPTIONS, GET, PUT")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	}
+}
+
 func main() {
 
 	Model.ConnectDatabase()
@@ -19,6 +36,8 @@ func main() {
 	router := gin.Default()
 
 	router.Use(gin.Logger())
+
+	router.Use(CORSMiddleware())
 
 	// Define a route handler
 	router.GET("/", func(c *gin.Context) {
@@ -37,31 +56,31 @@ func main() {
 			admin.GET("/dashboard/rtrw-periode", gin.HandlerFunc(dashboard.GetRtrwPeriode))
 
 			rdtrController := &AdminController.RdtrController{}
-			admin.GET("/rdtr/:id/view", rdtrController.GetRdtrById)
-			admin.GET("/rdtr/rdtrs", rdtrController.GetRdtrs)
-			admin.POST("/rdtr/new", rdtrController.AddRdtr)
-			admin.POST("/rdtr/update", rdtrController.UpdateRdtr)
-			admin.POST("/rdtr/delete", rdtrController.DeleteRdtr)
+			admin.GET("/zone_rdtr/get/:id/view", rdtrController.GetRdtrById)
+			admin.GET("/zone_rdtr/rdtrs", rdtrController.GetRdtrs)
+			admin.POST("/zone_rdtr/add", rdtrController.AddRdtr)
+			admin.POST("/zone_rdtr/update", rdtrController.UpdateRdtr)
+			admin.POST("/zone_rdtr/delete", rdtrController.DeleteRdtr)
 
 			rtrwController := &AdminController.RtrwController{}
-			admin.GET("/rtrw/rtrws", rtrwController.GetRtrws)
-			admin.GET("/rtrw/:uuid/view", rtrwController.GetRtrwByUUId)
-			admin.POST("/rtrw/new", rtrwController.AddRtrw)
-			admin.POST("/rtrw/update", rtrwController.UpdateRtrw)
-			admin.POST("/rtrw/delete", rtrwController.DeleteRtrw)
+			admin.GET("/zone_rtrw/rtrws", rtrwController.GetRtrws)
+			admin.GET("/zone_rtrw/:uuid/view", rtrwController.GetRtrwByUUId)
+			admin.POST("/zone_rtrw/add", rtrwController.AddRtrw)
+			admin.POST("/zone_rtrw/update", rtrwController.UpdateRtrw)
+			admin.POST("/zone_rtrw/delete", rtrwController.DeleteRtrw)
 
 			zlpController := &AdminController.ZLPController{}
-			admin.GET("/zlp/zlps", zlpController.GetZLPs)
-			admin.GET("/zlp/:uuid/view", zlpController.GetZLPByUUId)
-			admin.POST("/zlp/new", zlpController.AddZLP)
-			admin.POST("/zlp/update", zlpController.UpdateZLP)
-			admin.POST("/zlp/delete", zlpController.DeleteZLP)
+			admin.GET("/zone_land_price/zlps", zlpController.GetZLPs)
+			admin.GET("/zone_land_price/:uuid/view", zlpController.GetZLPByUUId)
+			admin.POST("/zone_land_price/new", zlpController.AddZLP)
+			admin.POST("/zone_land_price/update", zlpController.UpdateZLP)
+			admin.POST("/zone_land_price/delete", zlpController.DeleteZLP)
 
 			regLocationController := &AdminController.RegLocationController{}
 			admin.GET("/reg_location/province/provinces", regLocationController.GetProvinces)
-			admin.GET("/reg_location/regency/:province_id/regencies", regLocationController.GetRegencies)
-			admin.GET("/reg_location/district/:regency_id/districts", regLocationController.GetDistricts)
-			admin.GET("/reg_location/village/:district_id/districts", regLocationController.GetVillages)
+			admin.GET("/reg_location/regency/regencies", regLocationController.GetRegencies)
+			admin.GET("/reg_location/district/districts", regLocationController.GetDistricts)
+			admin.GET("/reg_location/village/villages", regLocationController.GetVillages)
 		}
 
 		// Front side

@@ -12,7 +12,7 @@ type RegLocationService struct {
 
 func (c *RegLocationService) GetProvinces() ([]Model.RegProvince, error) {
 	regProvinceDatas := []Model.RegProvince{}
-	err := c.DB.Find(&regProvinceDatas).Error
+	err := c.DB.Order("name ASC").Find(&regProvinceDatas).Error
 	if err != nil {
 		return []Model.RegProvince{}, err
 	}
@@ -21,7 +21,7 @@ func (c *RegLocationService) GetProvinces() ([]Model.RegProvince, error) {
 
 func (c *RegLocationService) GetRegenciesByProvinceId(province_id int) ([]Model.RegRegency, error) {
 	regRegencyDatas := []Model.RegRegency{}
-	err := c.DB.Where("reg_province_id = ?", province_id).Find(&regRegencyDatas).Error
+	err := c.DB.Where("reg_province_id = ?", province_id).Order("name ASC").Find(&regRegencyDatas).Error
 	if err != nil {
 		return []Model.RegRegency{}, err
 	}

@@ -39,7 +39,7 @@ func (a *RdtrController) GetRdtrById(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	// Check for any conversion error
 	if err != nil {
-		fmt.Println("Error:", err)
+		fmt.Println("GetRdtrById Error:", err)
 		ctx.JSON(500, gin.H{
 			"status":      "error",
 			"status_code": 500,
@@ -111,12 +111,12 @@ func (a *RdtrController) AddRdtr(ctx *gin.Context) {
 		})
 		return
 	}
+	tx.Commit()
 	ctx.JSON(200, gin.H{
 		"return":      rdtrData,
 		"status":      "success",
 		"status_code": 200,
 	})
-	tx.Commit()
 }
 
 func (a *RdtrController) UpdateRdtr(ctx *gin.Context) {
@@ -163,6 +163,7 @@ func (a *RdtrController) UpdateRdtr(ctx *gin.Context) {
 		})
 		return
 	}
+	tx.Commit()
 	ctx.JSON(200, gin.H{
 		"return":      rdtrData,
 		"status":      "success",

@@ -28,11 +28,12 @@ func (c *RdtrService) GetById(id int) *gorm.DB {
 func (c *RdtrService) Add(props interface{}) (Model.RdtrType, error) {
 
 	var result struct {
-		Name        string `json:"name"`
-		Province_id int64  `json:"province_id"`
-		Regency_id  int64  `json:"regency_id"`
-		District_id int64  `json:"district_id"`
-		Village_id  int64  `json:"village_id"`
+		Name            string `json:"name"`
+		Reg_Province_id int64  `json:"reg_province_id" validate:"required|string"`
+		Reg_Regency_id  int64  `json:"reg_regency_id" validate:"required|string"`
+		Reg_District_id int64  `json:"reg_district_id" validate:"required|string"`
+		Reg_Village_id  int64  `json:"reg_village_id" validate:"required|string"`
+		Status          string `json:"status"`
 	}
 
 	err := Helper.ToStructFromMap(props, &result)
@@ -42,11 +43,11 @@ func (c *RdtrService) Add(props interface{}) (Model.RdtrType, error) {
 
 	rdtrModel := Model.RdtrType{}
 	rdtrModel.Name = result.Name
-	rdtrModel.RegProvince_id = result.Province_id
-	rdtrModel.RegRegency_id = result.Regency_id
-	rdtrModel.RegDistrict_id = result.District_id
-	rdtrModel.RegVillage_id = result.Village_id
-
+	rdtrModel.RegProvince_id = result.Reg_Province_id
+	rdtrModel.RegRegency_id = result.Reg_Regency_id
+	rdtrModel.RegDistrict_id = result.Reg_District_id
+	rdtrModel.RegVillage_id = result.Reg_Village_id
+	rdtrModel.Status = result.Status
 	err = c.DB.Create(&rdtrModel).Error
 	if err != nil {
 		return Model.RdtrType{}, err
@@ -57,12 +58,13 @@ func (c *RdtrService) Add(props interface{}) (Model.RdtrType, error) {
 func (c *RdtrService) Update(props interface{}) (Model.RdtrType, error) {
 
 	var result struct {
-		Id          int64  `json:"id"`
-		Name        string `json:"name"`
-		Province_id int64  `json:"province_id"`
-		Regency_id  int64  `json:"regency_id"`
-		District_id int64  `json:"district_id"`
-		Village_id  int64  `json:"village_id"`
+		Id              int64  `json:"id"`
+		Name            string `json:"name"`
+		Reg_Province_id int64  `json:"reg_province_id" validate:"required|string"`
+		Reg_Regency_id  int64  `json:"reg_regency_id" validate:"required|string"`
+		Reg_District_id int64  `json:"reg_district_id" validate:"required|string"`
+		Reg_Village_id  int64  `json:"reg_village_id" validate:"required|string"`
+		Status          string `json:"status"`
 	}
 
 	err := Helper.ToStructFromMap(props, &result)
@@ -73,10 +75,11 @@ func (c *RdtrService) Update(props interface{}) (Model.RdtrType, error) {
 	rdtrModel := Model.RdtrType{}
 	rdtrModel.Id = result.Id
 	rdtrModel.Name = result.Name
-	rdtrModel.RegProvince_id = result.Province_id
-	rdtrModel.RegRegency_id = result.Regency_id
-	rdtrModel.RegDistrict_id = result.District_id
-	rdtrModel.RegVillage_id = result.Village_id
+	rdtrModel.RegProvince_id = result.Reg_Province_id
+	rdtrModel.RegRegency_id = result.Reg_Regency_id
+	rdtrModel.RegDistrict_id = result.Reg_District_id
+	rdtrModel.RegVillage_id = result.Reg_Village_id
+	rdtrModel.Status = result.Status
 
 	err = c.DB.Save(&rdtrModel).Error
 	if err != nil {
@@ -92,7 +95,7 @@ func (c *RdtrService) DeleteByIds(arr []int) error {
 
 func (c *RdtrService) GetGroupsByRdtrId(rdtr_id int) ([]Model.RdtrGroup, error) {
 	rdtrGroups := []Model.RdtrGroup{}
-	err := Model.DB.Find(&rdtrGroups).Where("rdtr_id = ?", rdtr_id).Error
+	err := Model.DB.Where("rdtr_id = ?", rdtr_id).Find(&rdtrGroups).Error
 	if err != nil {
 		return []Model.RdtrGroup{}, err
 	}
@@ -123,7 +126,7 @@ func (c *RdtrService) AddGroup(props interface{}) (Model.RdtrGroup, error) {
 }
 
 func (c *RdtrService) DeleteGroupByRdtrId(rdtr_id int) error {
-	err := Model.DB.Delete(Model.RdtrGroup{}).Where("rdtr_id = ?", rdtr_id).Error
+	err := Model.DB.Where("rdtr_id = ?", rdtr_id).Delete(Model.RdtrGroup{}).Error
 	if err != nil {
 		return err
 	}

@@ -3,10 +3,11 @@ package model
 type RdtrType struct {
 	Id             int64  `gorm:"primaryKey" json:"id,omitempty"`
 	Name           string `gorm:"type:varchar(255);column:name" json:"name"`
-	RegProvince_id int64  `gorm:"type:uint;column:reg_province_id" json:"province_id"`
-	RegRegency_id  int64  `gorm:"type:uint;column:reg_regency_id" json:"regency_id"`
-	RegDistrict_id int64  `gorm:"type:uint;column:reg_district_id" json:"district_id"`
-	RegVillage_id  int64  `gorm:"type:uint;column:reg_village_id" json:"village_id,omitempty"`
+	RegProvince_id int64  `gorm:"type:uint;column:reg_province_id" json:"reg_province_id"`
+	RegRegency_id  int64  `gorm:"type:uint;column:reg_regency_id" json:"reg_regency_id"`
+	RegDistrict_id int64  `gorm:"type:uint;column:reg_district_id" json:"reg_district_id,omitempty"`
+	RegVillage_id  int64  `gorm:"type:uint;column:reg_village_id" json:"reg_village_id,omitempty"`
+	Status         string `gorm:"type:uint;column:status" json:"status"`
 }
 
 // Set the table name for the User model

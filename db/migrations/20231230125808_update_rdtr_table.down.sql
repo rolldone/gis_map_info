@@ -1,0 +1,2 @@
+ALTER TABLE rdtr
+DROP COLUMN status
