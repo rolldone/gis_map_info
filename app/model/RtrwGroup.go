@@ -13,7 +13,7 @@ type RtrwGroup struct {
 	Properties pgtype.JSONCodec `gorm:"type:json" json:"properties"`
 	Status     string           `gorm:"type:varchar" json:"status"`
 	Name       string           `gorm:"type:varchar" json:"name"`
-	Cat_key    string           `gorm:"type:varchar" json:"cat_key"`
+	Asset_key  string           `gorm:"column:asset_key;type:varchar(255)" json:"asset_key"`
 	CreatedAt  time.Time        `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt  time.Time        `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
 }

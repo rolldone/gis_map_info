@@ -1,0 +1,4 @@
+ALTER TABLE rtrw_group
+ADD COLUMN asset_key VARCHAR(255) NULL;
+ALTER TABLE rtrw_group
+DROP COLUMN cat_key

@@ -1,2 +1,4 @@
 ALTER TABLE rtrw
 DROP COLUMN status
+ALTER TABLE rtrw
+DROP COLUMN place_string;

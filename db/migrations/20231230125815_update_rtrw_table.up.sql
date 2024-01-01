@@ -1,5 +1,7 @@
 ALTER TABLE rtrw
 ADD COLUMN status VARCHAR(20) NULL;
+ALTER TABLE rtrw
+ADD COLUMN place_string VARCHAR(255) NULL;
 
 ALTER TABLE rtrw
 ALTER COLUMN reg_province_id TYPE BIGINT USING reg_province_id::BIGINT;

@@ -57,10 +57,15 @@ func main() {
 
 			rdtrController := &AdminController.RdtrController{}
 			admin.GET("/zone_rdtr/get/:id/view", rdtrController.GetRdtrById)
-			admin.GET("/zone_rdtr/rdtrs", rdtrController.GetRdtrs)
+			admin.GET("/zone_rdtr/gets/paginate", rdtrController.GetRdtrsPaginate)
+			admin.GET("/zone_rdtr/gets", rdtrController.GetRdtrs)
 			admin.POST("/zone_rdtr/add", rdtrController.AddRdtr)
 			admin.POST("/zone_rdtr/update", rdtrController.UpdateRdtr)
 			admin.POST("/zone_rdtr/delete", rdtrController.DeleteRdtr)
+
+			rdtrFileController := &AdminController.RdtrFileController{}
+			admin.POST("/rdtr_file/add", rdtrFileController.Add)
+			admin.GET("/rdtr_file/get/:uuid", rdtrFileController.GetByUUID)
 
 			rtrwController := &AdminController.RtrwController{}
 			admin.GET("/zone_rtrw/rtrws", rtrwController.GetRtrws)

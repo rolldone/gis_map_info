@@ -1,2 +1,4 @@
 ALTER TABLE rdtr
-DROP COLUMN status
+DROP COLUMN status;
+ALTER TABLE rdtr
+DROP COLUMN place_string;
