@@ -12,6 +12,8 @@ import (
 
 var DB *gorm.DB
 
+// New own type
+
 func ConnectDatabase() {
 	// Load the .env file
 	if err := godotenv.Load(); err != nil {

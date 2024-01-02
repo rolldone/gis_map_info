@@ -46,7 +46,10 @@ func (a *RdtrController) GetRdtrsPaginate(ctx *gin.Context) {
 	var offset = (page - 1) * limit
 
 	// Fetch data from the database
-	if err := rdtrDB.Preload("Rdtr_groups").Limit(limit).Offset(offset).Order("updated_at DESC").Find(&rdtrDatas).Error; err != nil {
+	if err := rdtrDB.Preload("Rdtr_groups").
+		Preload("Rdtr_groups.Datas").
+		Limit(limit).Offset(offset).Order("updated_at DESC").Find(&rdtrDatas).Error; err != nil {
+		fmt.Println("Error - 29mvamfivm2 ", err)
 		ctx.JSON(500, gin.H{
 			"status":      "error",
 			"status_code": 500,
@@ -78,7 +81,8 @@ func (a *RdtrController) GetRdtrById(ctx *gin.Context) {
 	rdtrDB := RdtrService.GetById(id)
 	var rdtrData = Model.RdtrType{}
 	// Fetch data from the database
-	if err := rdtrDB.Preload("Rdtr_groups").First(&rdtrData).Error; err != nil {
+	if err := rdtrDB.Preload("Rdtr_groups").
+		Preload("Rdtr_groups.Datas").First(&rdtrData).Error; err != nil {
 		fmt.Println("Error:", err)
 		ctx.JSON(404, gin.H{
 			"status":      "error",
@@ -141,13 +145,13 @@ func (a *RdtrController) AddRdtr(ctx *gin.Context) {
 	rdtrServiceAddData.Status = props.Status
 	rdtrData, err := RdtrService.Add(rdtrServiceAddData)
 	if err != nil {
-		fmt.Println("Error:", err)
+		tx.Rollback()
+		fmt.Println("Error - 2mvcaisdfmv29 :", err)
 		ctx.JSON(500, gin.H{
 			"status":      "error",
 			"status_code": 500,
 			"return":      err.Error(),
 		})
-		tx.Rollback()
 		return
 	}
 	rdtrGroups := props.Rdtr_groups
@@ -190,7 +194,8 @@ func (a *RdtrController) AddRdtr(ctx *gin.Context) {
 		return
 	}
 	rr := Model.RdtrType{}
-	tx.Preload("Rdtr_groups").Where("id = ?", rdtrData.Id).First(&rr)
+	tx.Preload("Rdtr_groups").
+		Preload("Rdtr_groups.Datas").Where("id = ?", rdtrData.Id).First(&rr)
 	tx.Commit()
 	ctx.JSON(200, gin.H{
 		"return":      rr,
@@ -251,7 +256,8 @@ func (a *RdtrController) UpdateRdtr(ctx *gin.Context) {
 	rdtrServiceUpdateData.Status = props.Status
 	rdtrData, err := RdtrService.Update(rdtrServiceUpdateData)
 	if err != nil {
-		fmt.Println("Error:", err)
+		tx.Rollback()
+		fmt.Println("Error - E2MVAIDFMVIRTIEM", err)
 		ctx.JSON(500, gin.H{
 			"status":      "error",
 			"status_code": 500,
@@ -259,7 +265,9 @@ func (a *RdtrController) UpdateRdtr(ctx *gin.Context) {
 		})
 		return
 	}
-
+	rdtrFileService := Service.RdtrFileService{
+		DB: tx,
+	}
 	rdtrGroups := props.Rdtr_groups
 	RdtrService.DeleteGroupByRdtrId(int(rdtrData.Id))
 	for i := 0; i < len(rdtrGroups); i++ {
@@ -286,15 +294,32 @@ func (a *RdtrController) UpdateRdtr(ctx *gin.Context) {
 			err = errors.Join(errArr...)
 			break
 		}
-		_, err2 := RdtrService.AddGroup(rdtrGroupData)
+		rdtrGroupuResult, err2 := RdtrService.AddGroup(rdtrGroupData)
 		if err2 != nil {
 			err = err2
 			break
 		}
+		if rdtrGroupItem["datas"] != nil {
+			rdtrFileDatas := rdtrGroupItem["datas"].([]interface{})
+			for j := 0; j < len(rdtrFileDatas); j++ {
+				rdtrFileItem := rdtrFileDatas[j].(map[string]interface{})
+				rdtrFileProps := rdtrFileService.RdtrFileUpdate
+				rdtrFileProps.Id = int64(Helper.GetValue(rdtrFileItem["id"], 0).(float64))
+				rdtrFileProps.Rdtr_group_id = rdtrGroupuResult.Id
+				rdtrFileProps.Rdtr_id = rdtrData.Id
+				fmt.Println("mmmmmmmmmmmmmmmmm", rdtrFileProps.Id)
+				ll, err3 := rdtrFileService.Update(rdtrFileProps)
+				if err3 != nil {
+					err = err3
+				}
+				fmt.Println("rdtrFileItem ", ll)
+
+			}
+		}
 	}
 	if err != nil {
 		tx.Rollback()
-		fmt.Println("Error:", err)
+		fmt.Println("Error - 2998923489:", err)
 		ctx.JSON(500, gin.H{
 			"status":      "error",
 			"status_code": 500,
@@ -303,7 +328,8 @@ func (a *RdtrController) UpdateRdtr(ctx *gin.Context) {
 		return
 	}
 	rr := Model.RdtrType{}
-	tx.Preload("Rdtr_groups").Where("id = ?", rdtrData.Id).First(&rr)
+	tx.Preload("Rdtr_groups").
+		Preload("Rdtr_groups.Datas").Where("id = ?", rdtrData.Id).First(&rr)
 	tx.Commit()
 	ctx.JSON(200, gin.H{
 		"return":      rr,

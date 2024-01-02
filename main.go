@@ -66,6 +66,7 @@ func main() {
 			rdtrFileController := &AdminController.RdtrFileController{}
 			admin.POST("/rdtr_file/add", rdtrFileController.Add)
 			admin.GET("/rdtr_file/get/:uuid", rdtrFileController.GetByUUID)
+			admin.POST("/rdtr_file/delete", rdtrController.DeleteRdtr)
 
 			rtrwController := &AdminController.RtrwController{}
 			admin.GET("/zone_rtrw/rtrws", rtrwController.GetRtrws)

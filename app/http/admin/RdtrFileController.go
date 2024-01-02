@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"fmt"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -101,8 +102,7 @@ func (c *RdtrFileController) Add(ctx *gin.Context) {
 		})
 		return
 	}
-	tx := Model.DB
-	tx.Begin()
+	tx := Model.DB.Begin()
 	rdtrFIleService := Service.RdtrFileService{
 		DB: tx,
 	}
@@ -110,22 +110,24 @@ func (c *RdtrFileController) Add(ctx *gin.Context) {
 	rdTrFileAdd.Uuid = formData.Uuid
 	rdtrFile, err := rdtrFIleService.Add(rdTrFileAdd)
 	if err != nil {
+		fmt.Println("Error - KI2M9VCAMVKFMV :: ", err)
+		tx.Rollback()
 		ctx.JSON(400, gin.H{
 			"status":      "error",
 			"status_code": 400,
 			"return":      err.Error(),
 		})
-		tx.Rollback()
 		return
 	}
 	rrr, err := rdtrFIleService.GetById(int(rdtrFile.Id))
 	if err != nil {
+		fmt.Println("Error - IM2IMC9SDJM2 :: ", err)
+		tx.Rollback()
 		ctx.JSON(400, gin.H{
 			"status":      "error",
 			"status_code": 400,
 			"return":      err.Error(),
 		})
-		tx.Rollback()
 		return
 	}
 	tx.Commit()
