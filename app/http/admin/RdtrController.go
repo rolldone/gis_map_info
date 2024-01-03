@@ -356,3 +356,20 @@ func (a *RdtrController) DeleteRdtr(ctx *gin.Context) {
 	}
 	ctx.JSON(200, gin.H{"message": "Deleted Successfuly"})
 }
+
+func (a *RdtrController) Validate(ctx *gin.Context) {
+	var props struct {
+		Ids []int `json:"ids"`
+	}
+	if err := ctx.ShouldBindJSON(&props); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	// var RdtrService = Service.RdtrService{}
+
+	ctx.JSON(200, gin.H{
+		"return":      props,
+		"status":      "success",
+		"status_code": 200,
+	})
+}

@@ -1,12 +1,21 @@
 package main
 
 import (
+	"fmt"
 	"gis_map_info/app"
 	AdminController "gis_map_info/app/http/admin"
 	FrontController "gis_map_info/app/http/front"
 	Model "gis_map_info/app/model"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	Task "gis_map_info/task"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hibiken/asynq"
 )
 
 func CORSMiddleware() gin.HandlerFunc {
@@ -62,6 +71,7 @@ func main() {
 			admin.POST("/zone_rdtr/add", rdtrController.AddRdtr)
 			admin.POST("/zone_rdtr/update", rdtrController.UpdateRdtr)
 			admin.POST("/zone_rdtr/delete", rdtrController.DeleteRdtr)
+			admin.POST("/zone_rdtr/validate", rdtrController.Validate)
 
 			rdtrFileController := &AdminController.RdtrFileController{}
 			admin.POST("/rdtr_file/add", rdtrFileController.Add)
@@ -100,6 +110,101 @@ func main() {
 		api.GET("rtrw/:id/view", frontRtrwController.GetByUUID)
 	}
 
-	// Start the server
-	router.Run(":8080")
+	TestingRunningTask()
+
+	go func() {
+		// Start the server
+		router.Run(":8080")
+	}()
+
+	// Handle graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Shutting down servers...")
+
+	// Shutdown Gin server (Gin does not provide a built-in shutdown method, so you may handle this as needed)
+	// For example, you can use http.Server for more control over the Gin server and shutdown it gracefully.
+
+	log.Println("Servers gracefully stopped.")
+}
+
+func TestingRunningTask() {
+
+	fmt.Println("Running")
+	redisHost := os.Getenv("REDIS_HOST")
+	redisPassword := os.Getenv("REDIS_PASSWORD")
+	redisPort := os.Getenv("REDIS_PORT")
+
+	client := asynq.NewClient(asynq.RedisClientOpt{Addr: redisHost + ":" + redisPort, Password: redisPassword})
+	defer client.Close()
+
+	// ------------------------------------------------------
+	// Example 1: Enqueue task to be processed immediately.
+	//            Use (*Client).Enqueue method.
+	// ------------------------------------------------------
+
+	task, err := Task.NewEmailDeliveryTask(42, "some:template:id")
+	if err != nil {
+		log.Fatalf("could not schedule task: %v", err)
+	}
+
+	info, err := client.Enqueue(task)
+	if err != nil {
+		log.Fatalf("could not schedule task: %v", err)
+	}
+	log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
+
+	// ------------------------------------------------------------
+	// Example 2: Schedule task to be processed in the future.
+	//            Use ProcessIn or ProcessAt option.
+	// ------------------------------------------------------------
+
+	info, err = client.Enqueue(task, asynq.ProcessIn(20*time.Second))
+	if err != nil {
+		log.Fatalf("could not schedule task: %v", err)
+	}
+	log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
+
+	// ----------------------------------------------------------------------------
+	// Example 3: Set other options to tune task processing behavior.
+	//            Options include MaxRetry, Queue, Timeout, Deadline, Unique etc.
+	// ----------------------------------------------------------------------------
+
+	task, err = Task.NewIMageResizeTask("https://example.com/myassets/image.jpg")
+	if err != nil {
+		log.Fatalf("could not create task: %v", err)
+	}
+	info, err = client.Enqueue(task, asynq.MaxRetry(10), asynq.Timeout(1*time.Minute))
+	if err != nil {
+		log.Fatalf("could not enqueue task: %v", err)
+	}
+	log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
+
+	srv := asynq.NewServer(
+		asynq.RedisClientOpt{Addr: redisHost + ":" + redisPort, Password: redisPassword},
+		asynq.Config{
+			// Specify how many concurrent workers to use
+			Concurrency: 10,
+			// Optionally specify multiple queues with different priority.
+			Queues: map[string]int{
+				"critical": 6,
+				"default":  3,
+				"low":      1,
+			},
+			// See the godoc for other configuration options
+		},
+	)
+
+	// mux maps a type to a handler
+	mux := asynq.NewServeMux()
+	mux.HandleFunc(Task.TypeEmailDelivery, Task.HandleEmailDeliveryTask)
+	mux.Handle(Task.TypeImageResize, Task.NewImageProcessor())
+	// ...register other handlers...
+	go func() {
+		if err := srv.Run(mux); err != nil {
+			log.Fatalf("could not run server: %v", err)
+		}
+	}()
 }
