@@ -6,6 +6,7 @@ import (
 	AdminController "gis_map_info/app/http/admin"
 	FrontController "gis_map_info/app/http/front"
 	Model "gis_map_info/app/model"
+	"gis_map_info/app/pubsub"
 	"log"
 	"os"
 	"os/signal"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/hibiken/asynq"
+	"github.com/nats-io/nats.go"
 )
 
 func CORSMiddleware() gin.HandlerFunc {
@@ -110,6 +112,7 @@ func main() {
 		api.GET("rtrw/:id/view", frontRtrwController.GetByUUID)
 	}
 
+	InitNats()
 	TestingRunningTask()
 
 	go func() {
@@ -140,47 +143,59 @@ func TestingRunningTask() {
 	client := asynq.NewClient(asynq.RedisClientOpt{Addr: redisHost + ":" + redisPort, Password: redisPassword})
 	defer client.Close()
 
+	// This is real case validate kml
+	task, err := Task.NewValidateKmlTask(161, "rdtr")
+	if err != nil {
+		log.Fatalf("Could not schedule task : %v", err)
+	}
+
+	info, err := client.Enqueue(task)
+	if err != nil {
+		log.Fatalf("could not scheudle task: %v", err)
+	}
+
+	log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
 	// ------------------------------------------------------
 	// Example 1: Enqueue task to be processed immediately.
 	//            Use (*Client).Enqueue method.
 	// ------------------------------------------------------
 
-	task, err := Task.NewEmailDeliveryTask(42, "some:template:id")
-	if err != nil {
-		log.Fatalf("could not schedule task: %v", err)
-	}
+	// task, err = Task.NewEmailDeliveryTask(42, "some:template:id")
+	// if err != nil {
+	// 	log.Fatalf("could not schedule task: %v", err)
+	// }
 
-	info, err := client.Enqueue(task)
-	if err != nil {
-		log.Fatalf("could not schedule task: %v", err)
-	}
-	log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
+	// info, err = client.Enqueue(task)
+	// if err != nil {
+	// 	log.Fatalf("could not schedule task: %v", err)
+	// }
+	// log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
 
 	// ------------------------------------------------------------
 	// Example 2: Schedule task to be processed in the future.
 	//            Use ProcessIn or ProcessAt option.
 	// ------------------------------------------------------------
 
-	info, err = client.Enqueue(task, asynq.ProcessIn(20*time.Second))
-	if err != nil {
-		log.Fatalf("could not schedule task: %v", err)
-	}
-	log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
+	// info, err = client.Enqueue(task, asynq.ProcessIn(20*time.Second))
+	// if err != nil {
+	// 	log.Fatalf("could not schedule task: %v", err)
+	// }
+	// log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
 
 	// ----------------------------------------------------------------------------
 	// Example 3: Set other options to tune task processing behavior.
 	//            Options include MaxRetry, Queue, Timeout, Deadline, Unique etc.
 	// ----------------------------------------------------------------------------
 
-	task, err = Task.NewIMageResizeTask("https://example.com/myassets/image.jpg")
-	if err != nil {
-		log.Fatalf("could not create task: %v", err)
-	}
-	info, err = client.Enqueue(task, asynq.MaxRetry(10), asynq.Timeout(1*time.Minute))
-	if err != nil {
-		log.Fatalf("could not enqueue task: %v", err)
-	}
-	log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
+	// task, err = Task.NewIMageResizeTask("https://example.com/myassets/image.jpg")
+	// if err != nil {
+	// 	log.Fatalf("could not create task: %v", err)
+	// }
+	// info, err = client.Enqueue(task, asynq.MaxRetry(10), asynq.Timeout(1*time.Minute))
+	// if err != nil {
+	// 	log.Fatalf("could not enqueue task: %v", err)
+	// }
+	// log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
 
 	srv := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: redisHost + ":" + redisPort, Password: redisPassword},
@@ -201,10 +216,52 @@ func TestingRunningTask() {
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(Task.TypeEmailDelivery, Task.HandleEmailDeliveryTask)
 	mux.Handle(Task.TypeImageResize, Task.NewImageProcessor())
+	mux.HandleFunc(Task.TypeValidateKml, Task.HandleValidateKmlTask)
 	// ...register other handlers...
 	go func() {
 		if err := srv.Run(mux); err != nil {
 			log.Fatalf("could not run server: %v", err)
 		}
+	}()
+}
+
+func InitNats() {
+	_, err := pubsub.ConnectPubSub()
+	if err != nil {
+		fmt.Println("Nats error :: ", err.Error())
+	} else {
+		// Simple Async Subscriber
+		pubsub.NATS.Subscribe("foo", func(m *nats.Msg) {
+			fmt.Printf("\nReceived a message: %s\n", string(m.Data))
+		})
+		go func() {
+			timer := time.After(5 * time.Second)
+			<-timer
+			// Simple Publisher
+			pubsub.NATS.Publish("foo", []byte("Hello World NATS"))
+		}()
+	}
+
+}
+
+func InitSocketClient() {
+	// uri := "http://127.0.0.1:8000"
+
+	go func() {
+		timer := time.After(2 * time.Second)
+		// Wait for the signal
+		fmt.Println("Waiting...")
+		<-timer
+		fmt.Println("Done!!!")
+		// client, _ := socketio.NewClient(uri, nil)
+
+		// // Handle an incoming event
+		// client.OnEvent("reply", func(s socketio.Conn, msg string) {
+		// 	log.Println("Receive Message /reply: ", "reply", msg)
+		// })
+
+		// client.Connect()
+		// client.Emit("notice", "hello")
+		// client.Close()
 	}()
 }

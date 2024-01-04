@@ -56,8 +56,9 @@ func (c *RdtrFileService) DeleteById(id int) bool {
 	return true
 }
 
-func (c *RdtrFileService) Gets(props interface{}) []Model.RdtrFile {
-	return []Model.RdtrFile{}
+func (c *RdtrFileService) Gets(props interface{}) *gorm.DB {
+	rdtrFiles := Model.RdtrFile{}
+	return c.DB.Model(&rdtrFiles)
 }
 
 func (c *RdtrFileService) GetByUUID(uuid string) (Model.RdtrFile, error) {
