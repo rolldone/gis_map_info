@@ -27,3 +27,11 @@ func UnMarshallKml(filePath string) model.Folder {
 
 	return root.Folder
 }
+
+// Func helper
+func GetFolderRecursive(folder *model.Folder) *model.Folder {
+	if folder != nil {
+		return GetFolderRecursive(folder.Folder)
+	}
+	return nil
+}

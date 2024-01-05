@@ -3,9 +3,15 @@ package task
 import (
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
+	"gis_map_info/app/helper/parser"
+	"gis_map_info/app/helper/parser/parsermodel"
 	"gis_map_info/app/model"
 	"gis_map_info/app/service"
+	"io/ioutil"
+	"os"
+	"reflect"
 
 	"github.com/hibiken/asynq"
 )
@@ -53,6 +59,12 @@ func HandleValidateKmlTask(ctx context.Context, t *asynq.Task) error {
 			fmt.Println("Validate rdtr - marshal :: ", err.Error())
 		}
 		fmt.Println("\nrdtrFileDatas :: ", string(ff))
+		// for i := 0; i < len(rdtrFIleDatas); i++ {
+		// 	rdtrFileItem := rdtrFIleDatas[i]
+		// 	generateGeoJSON("./storage/rdtr_files/" + rdtrFileItem.UUID + ".kml")
+		// 	// readKmltoString("./storage/rdtr_files/" + rdtrFileItem.UUID + ".kml")
+		// 	break
+		// }
 	case "rtrw":
 	case "zlp":
 
@@ -77,4 +89,76 @@ func HandleValidateKmlTask(ctx context.Context, t *asynq.Task) error {
 	// }
 	// : user_id=%d, template_id=%s", p.UserID, p.TemplateID)
 	return nil
+}
+
+func generateGeoJSON(path string) {
+	// fileName := strings.ReplaceAll(path, ".kml", ".geojson")
+	var kml = parser.UnMarshallKml(path)
+	placeMarks := kml.Document.Placemark
+	if parser.GetFolderRecursive(kml.Folder) != nil {
+		placeMarks = parser.GetFolderRecursive(kml.Folder).Document.Placemark
+	}
+	for i := 0; i < len(placeMarks); i++ {
+		placeMarkItem := placeMarks[i]
+		description := map[string]interface{}{}
+		if !reflect.ValueOf(placeMarkItem.ExtendedData).IsZero() && !reflect.ValueOf(placeMarkItem.ExtendedData.SchemaData).IsZero() {
+			fmt.Println("placeMarkIteme Name", placeMarkItem.ExtendedData.SchemaData.SimpleData[0].Value)
+			for i_index := 0; i_index < len(placeMarkItem.ExtendedData.SchemaData.SimpleData); i_index++ {
+				simpleDataItem := placeMarkItem.ExtendedData.SchemaData.SimpleData[i_index]
+				description[simpleDataItem.Name] = simpleDataItem.Value
+			}
+		}
+		_descriptionString, err := json.Marshal(description)
+		if err != nil {
+			fmt.Println("json.Marshal([]byte(description)) :: ", err)
+		}
+		placeMarkItem.Description.Value = string(_descriptionString)
+		fmt.Println("PlaceMarkerItem", placeMarkItem.Description)
+		placeMarks[i] = placeMarkItem
+	}
+	kml.Document.Placemark = placeMarks
+	newKML := parsermodel.Root{
+		Folder: kml,
+	}
+
+	fileKml, err := xml.Marshal(newKML)
+	if err != nil {
+		fmt.Println("xml.Marshal(placeMarks) :: ", err)
+	}
+	_ = ioutil.WriteFile(path, []byte(fileKml), 0644)
+	// var geoJson = parser.ToGeoJson(kml)
+	// file, _ := json.MarshalIndent(geoJson, "", " ")
+
+	// _ = ioutil.WriteFile(fileName, file, 0644)
+}
+
+func readKmltoString(path string) {
+	xmlFile, err := os.Open(path)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer xmlFile.Close()
+	p, err := ioutil.ReadAll(xmlFile)
+	if err != nil {
+		// handle error
+		fmt.Println(err.Error())
+		return
+	}
+	fmt.Println("aaaaaaaaaaaaaaaaa :: ", p)
+	// asString := string(p)
+	// fmt.Println("aaaaaaaaaa", asString)
+	// // var buf bytes.Buffer
+	// // io.Copy(&buf, xmlFile)
+	// // asString := buf.String()
+	// xml := strings.NewReader(asString)
+	// json, err := xj.Convert(xml)
+	// if err != nil {
+	// 	panic("That's embarrassing...")
+	// }
+	// fileName := strings.ReplaceAll(path, ".kml", ".geojson")
+
+	// // file, _ := json.MarshalIndent(json.String(), "", " ")
+
+	// _ = ioutil.WriteFile(fileName, []byte(json.String()), 0644)
+	// fmt.Println(json.String())
 }

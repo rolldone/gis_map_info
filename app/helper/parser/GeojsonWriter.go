@@ -25,9 +25,9 @@ func getFeatures(placemarks []model.Placemark) []model.Feature {
 
 func setProperties(extendedData model.ExtendedData) map[string]interface{} {
 	var propertyMap = make(map[string]interface{})
-	for _, data := range extendedData.Data {
-		propertyMap[data.Name] = data.Value
-	}
+	// for _, data := range extendedData.Data {
+	// 	propertyMap[data.Name] = data.Value
+	// }
 	return propertyMap
 }
 

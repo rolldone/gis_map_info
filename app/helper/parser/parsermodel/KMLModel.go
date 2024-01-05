@@ -15,6 +15,7 @@ type Folder struct {
 	XMLName  xml.Name `xml:"Folder"`
 	Name     string   `xml:"name"`
 	Document Document `xml:"Document"`
+	Folder   *Folder  `xml:"Folder"`
 }
 
 type Document struct {
@@ -26,13 +27,32 @@ type Document struct {
 type Placemark struct {
 	XMLName      xml.Name     `xml:"Placemark"`
 	Name         string       `xml:"name"`
+	Description  Description  `xml:"Description"`
 	ExtendedData ExtendedData `xml:"ExtendedData"`
 	Polygon      Polygon      `xml:"Polygon"`
 }
 
+type Description struct {
+	XMLName xml.Name `xml:"Description"`
+	Value   string   `xml:",innerxml"`
+}
+
 type ExtendedData struct {
-	XMLName xml.Name            `xml:"ExtendedData"`
-	Data    []ExtendedDataArray `xml:"Data"`
+	XMLName    xml.Name            `xml:"ExtendedData"`
+	Data       []ExtendedDataArray `xml:"Data"`
+	SchemaData SchemaData          `xml:"SchemaData"`
+}
+
+type SchemaData struct {
+	XMLName    xml.Name     `xml:"SchemaData"`
+	Name       string       `xml:"schemaUrl"`
+	SimpleData []SimpleData `xml:"SimpleData"`
+}
+
+type SimpleData struct {
+	XMLName xml.Name `xml:"SimpleData"`
+	Name    string   `xml:"name,attr"`
+	Value   string   `xml:",innerxml"`
 }
 
 type ExtendedDataArray struct {
@@ -61,7 +81,7 @@ type InnerBoundary struct {
 
 type LinearRing struct {
 	XMLName     xml.Name `xml:"LinearRing"`
-	Coordinates string   `xml:"coordinates"`
+	Coordinates string   `xml:",innerxml,coordinates"`
 }
 
 func (ring LinearRing) GetAsPointArray() [][]float64 {

@@ -6,6 +6,7 @@ import (
 	Helper "gis_map_info/app/helper"
 	Model "gis_map_info/app/model"
 	Service "gis_map_info/app/service"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"strings"
@@ -372,4 +373,19 @@ func (a *RdtrController) Validate(ctx *gin.Context) {
 		"status":      "success",
 		"status_code": 200,
 	})
+}
+
+func (a *RdtrController) Callback(ctx *gin.Context) {
+	var formData struct {
+		Uuid string
+		File *multipart.FileHeader `form:"file" validate:"required"`
+	}
+	if err := ctx.ShouldBind(&formData); err != nil {
+		ctx.JSON(400, gin.H{
+			"status":      "error",
+			"status_code": 400,
+			"return":      "Bad request",
+		})
+		return
+	}
 }

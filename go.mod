@@ -3,6 +3,7 @@ module gis_map_info
 go 1.21.5
 
 require (
+	github.com/basgys/goxml2json v1.1.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-playground/validator/v10 v10.14.0
 	github.com/google/uuid v1.5.0
@@ -66,7 +67,7 @@ require (
 	go.uber.org/automaxprocs v1.5.3 // indirect
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/crypto v0.17.0 // indirect
-	golang.org/x/net v0.10.0 // indirect
+	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/sync v0.5.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect

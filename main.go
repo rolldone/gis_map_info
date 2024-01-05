@@ -74,11 +74,13 @@ func main() {
 			admin.POST("/zone_rdtr/update", rdtrController.UpdateRdtr)
 			admin.POST("/zone_rdtr/delete", rdtrController.DeleteRdtr)
 			admin.POST("/zone_rdtr/validate", rdtrController.Validate)
+			admin.POST("/zone_rdtr/validate/callback", rdtrController.Callback)
 
 			rdtrFileController := &AdminController.RdtrFileController{}
 			admin.POST("/rdtr_file/add", rdtrFileController.Add)
 			admin.GET("/rdtr_file/get/:uuid", rdtrFileController.GetByUUID)
 			admin.POST("/rdtr_file/delete", rdtrController.DeleteRdtr)
+			admin.Static("/rdtr_file/assets", "./storage/rdtr_files")
 
 			rtrwController := &AdminController.RtrwController{}
 			admin.GET("/zone_rtrw/rtrws", rtrwController.GetRtrws)
@@ -99,6 +101,7 @@ func main() {
 			admin.GET("/reg_location/regency/regencies", regLocationController.GetRegencies)
 			admin.GET("/reg_location/district/districts", regLocationController.GetDistricts)
 			admin.GET("/reg_location/village/villages", regLocationController.GetVillages)
+
 		}
 
 		// Front side
