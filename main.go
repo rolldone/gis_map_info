@@ -74,7 +74,6 @@ func main() {
 			admin.POST("/zone_rdtr/update", rdtrController.UpdateRdtr)
 			admin.POST("/zone_rdtr/delete", rdtrController.DeleteRdtr)
 			admin.POST("/zone_rdtr/validate", rdtrController.Validate)
-			admin.POST("/zone_rdtr/validate/callback", rdtrController.Callback)
 
 			rdtrFileController := &AdminController.RdtrFileController{}
 			admin.POST("/rdtr_file/add", rdtrFileController.Add)

@@ -9,3 +9,4 @@ img_gis_map_info_postgis/
 /node/node_modules
 /storage
 /img_gis_map_info_node
+/node/files

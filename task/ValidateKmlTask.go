@@ -3,17 +3,20 @@ package task
 import (
 	"context"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
-	"gis_map_info/app/helper/parser"
-	"gis_map_info/app/helper/parser/parsermodel"
 	"gis_map_info/app/model"
-	"gis_map_info/app/service"
-	"io/ioutil"
+	"gis_map_info/app/pubsub"
+	"io"
+	"log"
+	"net/http"
 	"os"
-	"reflect"
+	"time"
 
+	service "gis_map_info/app/service"
+
+	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
+	"github.com/nats-io/nats.go"
 )
 
 const (
@@ -41,16 +44,23 @@ func HandleValidateKmlTask(ctx context.Context, t *asynq.Task) error {
 	if err := json.Unmarshal(t.Payload(), &p); err != nil {
 		return fmt.Errorf("json.Unmarshal failed: %v: %w", err, asynq.SkipRetry)
 	}
-	fmt.Printf("Validate is running :: %v", p.Rdtr_group_id)
+	// fmt.Printf("Validate is running :: %v", p.Rdtr_group_id)
 	switch p.Segment_group {
 	case "rdtr":
 		tx := model.DB
 		fileService := service.RdtrFileService{
 			DB: tx,
 		}
+		geoJsonService := service.RdtrGeojsonService{
+			DB: tx,
+		}
+		err := geoJsonService.DeleteByRdtrGroupId(int64(p.Rdtr_group_id))
+		if err != nil {
+			fmt.Println("DeleteByRdtrGroupId(int64(p.Rdtr_group_id)) :: ", err)
+		}
 		rdtrFileDB := fileService.Gets(nil)
 		rdtrFIleDatas := []model.RdtrFile{}
-		err := rdtrFileDB.Where("rdtr_group_id = ? ", p.Rdtr_group_id).Find(&rdtrFIleDatas).Error
+		err = rdtrFileDB.Preload("Rdtr_group").Preload("Rdtr").Where("rdtr_group_id = ? ", p.Rdtr_group_id).Find(&rdtrFIleDatas).Error
 		if err != nil {
 			fmt.Println("Validate rdtr :: ", err.Error())
 		}
@@ -59,106 +69,156 @@ func HandleValidateKmlTask(ctx context.Context, t *asynq.Task) error {
 			fmt.Println("Validate rdtr - marshal :: ", err.Error())
 		}
 		fmt.Println("\nrdtrFileDatas :: ", string(ff))
-		// for i := 0; i < len(rdtrFIleDatas); i++ {
-		// 	rdtrFileItem := rdtrFIleDatas[i]
-		// 	generateGeoJSON("./storage/rdtr_files/" + rdtrFileItem.UUID + ".kml")
-		// 	// readKmltoString("./storage/rdtr_files/" + rdtrFileItem.UUID + ".kml")
-		// 	break
-		// }
+		for i := 0; i < len(rdtrFIleDatas); i++ {
+			rdtrFileItem := rdtrFIleDatas[i]
+			payload := map[string]interface{}{}
+			payload["uuid"] = rdtrFileItem.UUID
+			payload["download"] = os.Getenv("APP_HOST") + "/api/admin/rdtr_file/assets/" + string(payload["uuid"].(string)+".kml")
+			payloadString, _ := json.Marshal(payload)
+			pubsub.NATS.Publish("convert_kml_geojson", payloadString)
+			uuidItem := payload["uuid"].(string)
+			ubsubcribeProcess, err := pubsub.NATS.Subscribe(uuidItem+"_process", func(msg *nats.Msg) {
+				fmt.Printf("\nReceived a message process: %s\n", string(msg.Data))
+			})
+			if err != nil {
+				fmt.Println("Validate rdtr - pubsub.NATS.Subscribe(uuidItem_process :: ", err.Error())
+				continue
+			}
+			unSubscribeFinish, err := pubsub.NATS.SubscribeSync(uuidItem + "_done")
+			if err != nil {
+				log.Fatal(err)
+				continue
+			}
+
+			// Counter to track processed messages
+			messageCount := 0
+			maxMessages := 60 // Maximum number of timeout process
+
+			var msg *nats.Msg
+			// Infinite loop to listen for messages
+			for messageCount < maxMessages {
+				// Wait for a message
+				msg, err = unSubscribeFinish.NextMsg(1 * time.Second) // Timeout after 5 seconds if no message
+				if err != nil {
+					if err == nats.ErrTimeout {
+						fmt.Println("Timed out waiting for a message.", messageCount)
+						messageCount++
+						continue
+					}
+					log.Fatal(err)
+				}
+
+				// Process the received message
+				fmt.Printf("Received message: %s\n", msg.Data)
+				break
+			}
+			if err := ubsubcribeProcess.Unsubscribe(); err != nil {
+				fmt.Printf("Error unsubscribing process: %v\n", err)
+				continue
+			}
+			if err := unSubscribeFinish.Unsubscribe(); err != nil {
+				fmt.Printf("Error unsubscribing done: %v\n", err)
+				continue
+			}
+			if msg != nil {
+				resData := map[string]interface{}{}
+				err := json.Unmarshal(msg.Data, &resData)
+				if err != nil {
+					fmt.Println("json.Unmarshal(msg.Data, &mesData) :: ", err)
+					continue
+				}
+				returnData := resData["return"].(map[string]interface{})
+				filePath := "./storage/rdtr_files/" + (string(payload["uuid"].(string))) + ".json"
+				downloadFileJSON(filePath, string(returnData["download"].(string)))
+				var groupProperty map[string]interface{}
+				err = json.Unmarshal([]byte(rdtrFileItem.Rdtr_group.Properties), &groupProperty)
+				if err != nil {
+					fmt.Println("Unmarshal([]byte(rdtrFileItem.Rdtr_group.Properties), &groupProperty) :: ", err)
+				}
+				generateGeometry(int(rdtrFileItem.Rdtr_id.Int64), int(rdtrFileItem.Rdtr_group_id.Int64), int(rdtrFileItem.Id), groupProperty, filePath)
+			}
+
+		}
 	case "rtrw":
 	case "zlp":
 
 	}
-
-	// k, err :=
-	// if err != nil {
-	// 	log.Fatalf("Failed to parse KML: %v", err)
-	// }
-
-	// // Convert KML to GeoJSON
-	// geoJSON, err := k.MarshalJSON()
-	// if err != nil {
-	// 	log.Fatalf("Failed to convert KML to GeoJSON: %v", err)
-	// }
-
-	// // Output GeoJSON
-	// fmt.Println(string(geoJSON))
-	// for i := 0; i < 100; i++ {
-
-	// 	pubsub.NATS.Publish("foo", []byte("This is from task"))
-	// }
-	// : user_id=%d, template_id=%s", p.UserID, p.TemplateID)
 	return nil
 }
 
-func generateGeoJSON(path string) {
-	// fileName := strings.ReplaceAll(path, ".kml", ".geojson")
-	var kml = parser.UnMarshallKml(path)
-	placeMarks := kml.Document.Placemark
-	if parser.GetFolderRecursive(kml.Folder) != nil {
-		placeMarks = parser.GetFolderRecursive(kml.Folder).Document.Placemark
-	}
-	for i := 0; i < len(placeMarks); i++ {
-		placeMarkItem := placeMarks[i]
-		description := map[string]interface{}{}
-		if !reflect.ValueOf(placeMarkItem.ExtendedData).IsZero() && !reflect.ValueOf(placeMarkItem.ExtendedData.SchemaData).IsZero() {
-			fmt.Println("placeMarkIteme Name", placeMarkItem.ExtendedData.SchemaData.SimpleData[0].Value)
-			for i_index := 0; i_index < len(placeMarkItem.ExtendedData.SchemaData.SimpleData); i_index++ {
-				simpleDataItem := placeMarkItem.ExtendedData.SchemaData.SimpleData[i_index]
-				description[simpleDataItem.Name] = simpleDataItem.Value
-			}
-		}
-		_descriptionString, err := json.Marshal(description)
-		if err != nil {
-			fmt.Println("json.Marshal([]byte(description)) :: ", err)
-		}
-		placeMarkItem.Description.Value = string(_descriptionString)
-		fmt.Println("PlaceMarkerItem", placeMarkItem.Description)
-		placeMarks[i] = placeMarkItem
-	}
-	kml.Document.Placemark = placeMarks
-	newKML := parsermodel.Root{
-		Folder: kml,
-	}
+func downloadFileJSON(dir_path string, path string) {
+	fmt.Println("downloadFileJSON", path)
 
-	fileKml, err := xml.Marshal(newKML)
+	resp, err := http.Get(path)
 	if err != nil {
-		fmt.Println("xml.Marshal(placeMarks) :: ", err)
-	}
-	_ = ioutil.WriteFile(path, []byte(fileKml), 0644)
-	// var geoJson = parser.ToGeoJson(kml)
-	// file, _ := json.MarshalIndent(geoJson, "", " ")
-
-	// _ = ioutil.WriteFile(fileName, file, 0644)
-}
-
-func readKmltoString(path string) {
-	xmlFile, err := os.Open(path)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer xmlFile.Close()
-	p, err := ioutil.ReadAll(xmlFile)
-	if err != nil {
-		// handle error
-		fmt.Println(err.Error())
+		fmt.Println("Error fetching the file:", err)
 		return
 	}
-	fmt.Println("aaaaaaaaaaaaaaaaa :: ", p)
-	// asString := string(p)
-	// fmt.Println("aaaaaaaaaa", asString)
-	// // var buf bytes.Buffer
-	// // io.Copy(&buf, xmlFile)
-	// // asString := buf.String()
-	// xml := strings.NewReader(asString)
-	// json, err := xj.Convert(xml)
-	// if err != nil {
-	// 	panic("That's embarrassing...")
-	// }
-	// fileName := strings.ReplaceAll(path, ".kml", ".geojson")
+	defer resp.Body.Close()
+	// Check if the request was successful
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("Failed to get the file. Status code: %d\n", resp.StatusCode)
+		return
+	}
+	// Create a new file where you want to save the downloaded content
+	out, err := os.Create(dir_path)
+	if err != nil {
+		fmt.Println("Error creating the file:", err)
+		return
+	}
+	defer out.Close()
 
-	// // file, _ := json.MarshalIndent(json.String(), "", " ")
+	// Copy the content from the HTTP response to the file
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		fmt.Println("Error copying the content:", err)
+		return
+	}
 
-	// _ = ioutil.WriteFile(fileName, []byte(json.String()), 0644)
-	// fmt.Println(json.String())
+	fmt.Println("File downloaded successfully!")
+}
+
+func generateGeometry(rdtr_id int, rdtr_group_id int, rdtr_file_id int, property map[string]interface{}, path string) {
+	rdtrGeojsonService := service.RdtrGeojsonService{
+		DB: model.DB,
+	}
+	readFile, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Println("os.ReadFile(path) :: ", err)
+	}
+	var dataArray []map[string]interface{}
+
+	// Unmarshal the JSON content into the slice of maps
+	if err := json.Unmarshal(readFile, &dataArray); err != nil {
+		log.Fatalf("Error unmarshalling JSON: %v", err)
+	}
+
+	// Print the slice to see the JSON content in Go format
+	for a := 0; a < len(dataArray); a++ {
+		arrItem := dataArray[a]
+		if arrItem["properties"] == nil {
+			fmt.Println("kosong")
+		} else {
+			arrProperty := arrItem["properties"].(map[string]interface{})
+			// Merge map2 into map1
+			arrProperty["fill"] = property["fill_color"]
+			arrItem["properties"] = arrProperty
+		}
+		rdtrGeojsonPayloadAdd := rdtrGeojsonService.RdtrGeojsonAdd
+		uuidValue, _ := uuid.NewRandom()
+		rdtrGeojsonPayloadAdd.Uuid = uuidValue.String()
+		propertiesByte, _ := json.Marshal(arrItem["properties"])
+		rdtrGeojsonPayloadAdd.Properties = propertiesByte
+		rdtrGeojsonPayloadAdd.Rdtr_file_id = int64(rdtr_file_id)
+		rdtrGeojsonPayloadAdd.Rdtr_group_id = int64(rdtr_group_id)
+		rdtrGeojsonPayloadAdd.Rdtr_id = int64(rdtr_id)
+		geometryByte, _ := json.Marshal(arrItem["geometry"])
+		rdtrGeojsonPayloadAdd.Geojson = string(geometryByte) // pq.StringArray{string(geometryByte)}
+		resRdtrGeoJsonAdd, err := rdtrGeojsonService.Add(rdtrGeojsonPayloadAdd)
+		if err != nil {
+			fmt.Println("rdtrGeojsonService.Add(rdtrGeojsonPayloadAdd) :: ", err)
+		}
+		fmt.Println("resRdtrGeoJsonAdd", resRdtrGeoJsonAdd)
+	}
+
 }
