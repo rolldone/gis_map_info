@@ -27,15 +27,15 @@ function init(nats) {
             const childProcess = exec("node scripts/ConvertKMLGeojson.mjs --config=files/" + (m_data.uuid + ".json"))
             // Listen for the output of the command
             childProcess.stdout.on('data', (data) => {
-                // console.log(`stdout: ${data}`); // Log standard output
+                console.log(`stdout: ${data}`); // Log standard output
                 nats.publish(m_data.uuid + "_process", JSON.stringify({
                     status: "success",
-                    return: data
+                    return: "Success"
                 }))
             });
 
             childProcess.stderr.on('data', (data) => {
-                // console.error(`stderr: ${data}`); // Log standard error
+                console.error(`stderr: ${data}`); // Log standard error
                 // done(new Error(data), {});
                 nats.publish(m_data.uuid + "_process", JSON.stringify({
                     status: "error",
@@ -44,7 +44,7 @@ function init(nats) {
             });
 
             childProcess.on('error', (error) => {
-                // console.error(`Error executing command: ${error}`);
+                console.error(`Error executing command: ${error}`);
                 // done(new Error(error), {});
                 nats.publish(m_data.uuid + "_process", JSON.stringify({
                     status: "success",
@@ -55,7 +55,7 @@ function init(nats) {
             childProcess.on('close', (code, signal) => {
                 // console.log(`Command execution completed with code: ${code}`);
                 console.log("signal", signal);
-                if (signal == null) {
+                if (signal == null || signal == "SIGTERM") {
                     nats.publish(m_data.uuid + "_done", JSON.stringify({
                         status_code: code,
                         status: "finish",

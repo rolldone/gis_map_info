@@ -3,18 +3,17 @@ package admin
 import (
 	"fmt"
 	Service "gis_map_info/app/service"
+	"gis_map_info/support/gorm_support"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-
-	Model "gis_map_info/app/model"
 )
 
 type RegLocationController struct {
 }
 
 func (c *RegLocationController) GetProvinces(ctx *gin.Context) {
-	tx := Model.DB
+	tx := gorm_support.DB
 	regLocationService := Service.RegLocationService{}
 	regLocationService.DB = tx
 	regProvinceDatas, err := regLocationService.GetProvinces()
@@ -35,7 +34,7 @@ func (c *RegLocationController) GetProvinces(ctx *gin.Context) {
 }
 
 func (c *RegLocationController) GetRegencies(ctx *gin.Context) {
-	tx := Model.DB
+	tx := gorm_support.DB
 	regLocationService := Service.RegLocationService{
 		DB: tx,
 	}
@@ -67,7 +66,7 @@ func (c *RegLocationController) GetRegencies(ctx *gin.Context) {
 }
 
 func (c *RegLocationController) GetDistricts(ctx *gin.Context) {
-	tx := Model.DB
+	tx := gorm_support.DB
 	regLocationService := Service.RegLocationService{
 		DB: tx,
 	}
@@ -99,7 +98,7 @@ func (c *RegLocationController) GetDistricts(ctx *gin.Context) {
 }
 
 func (c *RegLocationController) GetVillages(ctx *gin.Context) {
-	tx := Model.DB
+	tx := gorm_support.DB
 	regLocationService := Service.RegLocationService{
 		DB: tx,
 	}

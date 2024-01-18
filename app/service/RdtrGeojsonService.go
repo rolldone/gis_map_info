@@ -16,6 +16,7 @@ type RdtrGeojsonService struct {
 }
 
 type rdtrGeojsonAddPayload struct {
+	Order_number  int64
 	Uuid          string
 	Geojson       string
 	Properties    datatypes.JSON
@@ -29,6 +30,7 @@ type rdtrGeojsonUpdatePayload struct {
 
 func (c *RdtrGeojsonService) Add(props rdtrGeojsonAddPayload) (model.RdtrGeojson, error) {
 	rdtrGeojsonModel := model.RdtrGeojson{}
+	rdtrGeojsonModel.Order_number = props.Order_number
 	rdtrGeojsonModel.Uuid = props.Uuid
 	rdtrGeojsonModel.Geojson = props.Geojson
 	propertiesByte, _ := json.Marshal(props.Properties)

@@ -5,18 +5,20 @@ import (
 	"gis_map_info/app"
 	AdminController "gis_map_info/app/http/admin"
 	FrontController "gis_map_info/app/http/front"
-	Model "gis_map_info/app/model"
-	"gis_map_info/app/pubsub"
+	"gis_map_info/app/service"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	Task "gis_map_info/task"
+	"gis_map_info/support/asynq_support"
+	"gis_map_info/support/gorm_support"
+	"gis_map_info/support/log_support"
+	"gis_map_info/support/nats_support"
+	"gis_map_info/support/redis_support"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hibiken/asynq"
 	"github.com/nats-io/nats.go"
 )
 
@@ -39,9 +41,30 @@ func CORSMiddleware() gin.HandlerFunc {
 
 func main() {
 
-	Model.ConnectDatabase()
+	// Init log
+	f := log_support.Init()
+	defer f.Close()
+
+	gorm_support.ConnectDatabase()
 
 	app.Install()
+
+	// Init nats pub sub
+	InitNats()
+
+	// Set stopped the last bad asynq on database
+	asynqJobService := service.AsynqJobService{
+		DB: gorm_support.DB,
+	}
+	asynqJobService.StopLastProcess()
+
+	// Define asynq client
+	client := asynq_support.Init()
+	defer client.Close()
+
+	// Define redis client
+	redisClient := redis_support.ConnectRedis()
+	defer redisClient.Close()
 
 	// Initialize Gin's default router
 	router := gin.Default()
@@ -73,13 +96,19 @@ func main() {
 			admin.POST("/zone_rdtr/add", rdtrController.AddRdtr)
 			admin.POST("/zone_rdtr/update", rdtrController.UpdateRdtr)
 			admin.POST("/zone_rdtr/delete", rdtrController.DeleteRdtr)
-			admin.POST("/zone_rdtr/validate", rdtrController.Validate)
+			admin.POST("/zone_rdtr/validate_kml", rdtrController.ValidateKml)
+			admin.POST("/zone_rdtr/validate_mbtile", rdtrController.ValidateMbtile)
+			admin.GET("/zone_rdtr/validate/ws", rdtrController.HandleWS)
 
 			rdtrFileController := &AdminController.RdtrFileController{}
 			admin.POST("/rdtr_file/add", rdtrFileController.Add)
 			admin.GET("/rdtr_file/get/:uuid", rdtrFileController.GetByUUID)
-			admin.POST("/rdtr_file/delete", rdtrController.DeleteRdtr)
 			admin.Static("/rdtr_file/assets", "./storage/rdtr_files")
+
+			rdtrMbtileController := &AdminController.RdtrMbtileController{}
+			admin.POST("/rdtr_mbtile/add", rdtrMbtileController.Add)
+			admin.GET("/rdtr_mbtile/get/:uuid", rdtrMbtileController.GetbyUUID)
+			admin.GET("/rdtr_mbtile/martin_config", rdtrMbtileController.GetMartinConfig)
 
 			rtrwController := &AdminController.RtrwController{}
 			admin.GET("/zone_rtrw/rtrws", rtrwController.GetRtrws)
@@ -101,6 +130,11 @@ func main() {
 			admin.GET("/reg_location/district/districts", regLocationController.GetDistricts)
 			admin.GET("/reg_location/village/villages", regLocationController.GetVillages)
 
+			asynqJobController := AdminController.AsynqJobController{}
+			admin.GET("/asynq_job/asynq_jobs", asynqJobController.GetsAsynqJob)
+			admin.GET("/asynq_job/:uuid/app_uuid", asynqJobController.GetAsynqJobByAppUuid)
+			admin.POST("/asynq_job/delete", asynqJobController.DeleteAsynqJobByUUIDS)
+
 		}
 
 		// Front side
@@ -108,14 +142,12 @@ func main() {
 		frontRdtrController := FrontController.RdtrController()
 		api.GET("rdtr/rdtrs", frontRdtrController.Gets)
 		api.GET("rdtr/:id/view", frontRdtrController.GetByUUID)
+		api.GET("rdtr/position/:latlng", frontRdtrController.GetByPosition)
 
 		frontRtrwController := FrontController.RtrwController()
 		api.GET("rtrw/rtrws", frontRtrwController.Gets)
 		api.GET("rtrw/:id/view", frontRtrwController.GetByUUID)
 	}
-
-	InitNats()
-	TestingRunningTask()
 
 	go func() {
 		// Start the server
@@ -135,135 +167,21 @@ func main() {
 	log.Println("Servers gracefully stopped.")
 }
 
-func TestingRunningTask() {
-
-	fmt.Println("Running")
-	redisHost := os.Getenv("REDIS_HOST")
-	redisPassword := os.Getenv("REDIS_PASSWORD")
-	redisPort := os.Getenv("REDIS_PORT")
-
-	client := asynq.NewClient(asynq.RedisClientOpt{Addr: redisHost + ":" + redisPort, Password: redisPassword})
-	defer client.Close()
-
-	// This is real case validate kml
-	task, err := Task.NewValidateKmlTask(161, "rdtr")
-	if err != nil {
-		log.Fatalf("Could not schedule task : %v", err)
-	}
-
-	info, err := client.Enqueue(task)
-	if err != nil {
-		log.Fatalf("could not scheudle task: %v", err)
-	}
-
-	log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
-	// ------------------------------------------------------
-	// Example 1: Enqueue task to be processed immediately.
-	//            Use (*Client).Enqueue method.
-	// ------------------------------------------------------
-
-	// task, err = Task.NewEmailDeliveryTask(42, "some:template:id")
-	// if err != nil {
-	// 	log.Fatalf("could not schedule task: %v", err)
-	// }
-
-	// info, err = client.Enqueue(task)
-	// if err != nil {
-	// 	log.Fatalf("could not schedule task: %v", err)
-	// }
-	// log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
-
-	// ------------------------------------------------------------
-	// Example 2: Schedule task to be processed in the future.
-	//            Use ProcessIn or ProcessAt option.
-	// ------------------------------------------------------------
-
-	// info, err = client.Enqueue(task, asynq.ProcessIn(20*time.Second))
-	// if err != nil {
-	// 	log.Fatalf("could not schedule task: %v", err)
-	// }
-	// log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
-
-	// ----------------------------------------------------------------------------
-	// Example 3: Set other options to tune task processing behavior.
-	//            Options include MaxRetry, Queue, Timeout, Deadline, Unique etc.
-	// ----------------------------------------------------------------------------
-
-	// task, err = Task.NewIMageResizeTask("https://example.com/myassets/image.jpg")
-	// if err != nil {
-	// 	log.Fatalf("could not create task: %v", err)
-	// }
-	// info, err = client.Enqueue(task, asynq.MaxRetry(10), asynq.Timeout(1*time.Minute))
-	// if err != nil {
-	// 	log.Fatalf("could not enqueue task: %v", err)
-	// }
-	// log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
-
-	srv := asynq.NewServer(
-		asynq.RedisClientOpt{Addr: redisHost + ":" + redisPort, Password: redisPassword},
-		asynq.Config{
-			// Specify how many concurrent workers to use
-			Concurrency: 10,
-			// Optionally specify multiple queues with different priority.
-			Queues: map[string]int{
-				"critical": 6,
-				"default":  3,
-				"low":      1,
-			},
-			// See the godoc for other configuration options
-		},
-	)
-
-	// mux maps a type to a handler
-	mux := asynq.NewServeMux()
-	mux.HandleFunc(Task.TypeEmailDelivery, Task.HandleEmailDeliveryTask)
-	mux.Handle(Task.TypeImageResize, Task.NewImageProcessor())
-	mux.HandleFunc(Task.TypeValidateKml, Task.HandleValidateKmlTask)
-	// ...register other handlers...
-	go func() {
-		if err := srv.Run(mux); err != nil {
-			log.Fatalf("could not run server: %v", err)
-		}
-	}()
-}
-
 func InitNats() {
-	_, err := pubsub.ConnectPubSub()
+	_, err := nats_support.ConnectPubSub()
 	if err != nil {
 		fmt.Println("Nats error :: ", err.Error())
 	} else {
 		// Simple Async Subscriber
-		pubsub.NATS.Subscribe("foo", func(m *nats.Msg) {
+		nats_support.NATS.Subscribe("foo", func(m *nats.Msg) {
 			fmt.Printf("\nReceived a message: %s\n", string(m.Data))
 		})
 		go func() {
 			timer := time.After(5 * time.Second)
 			<-timer
 			// Simple Publisher
-			pubsub.NATS.Publish("foo", []byte("Hello World NATS"))
+			nats_support.NATS.Publish("foo", []byte("Hello World NATS"))
 		}()
 	}
 
-}
-
-func InitSocketClient() {
-	// uri := "http://127.0.0.1:8000"
-
-	go func() {
-		timer := time.After(2 * time.Second)
-		// Wait for the signal
-		fmt.Println("Waiting...")
-		<-timer
-		fmt.Println("Done!!!")
-		// client, _ := socketio.NewClient(uri, nil)
-
-		// // Handle an incoming event
-		// client.OnEvent("reply", func(s socketio.Conn, msg string) {
-		// 	log.Println("Receive Message /reply: ", "reply", msg)
-		// })
-
-		// client.Connect()
-		// client.Emit("notice", "hello")
-		// client.Close()
-	}()
 }

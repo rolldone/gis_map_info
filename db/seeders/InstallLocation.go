@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	Model "gis_map_info/app/model"
+	"gis_map_info/support/gorm_support"
 	"log"
 	"os"
 	"strconv"
@@ -49,7 +50,7 @@ type InstallLocation struct{}
 func (a *InstallLocation) Install() {
 
 	regProvinceModel := Model.RegProvince{}
-	regProvinceDatas := Model.DB.Find(&regProvinceModel)
+	regProvinceDatas := gorm_support.DB.Find(&regProvinceModel)
 	fmt.Println("Install province")
 	if regProvinceDatas.RowsAffected == 0 {
 		data, err := os.ReadFile("db/seeders/json/reg_provinces_latlng.json")
@@ -78,10 +79,10 @@ func (a *InstallLocation) Install() {
 			regProvinceModel.Name = p.Name
 			regProvinceModel.Latitude = p.Latitude
 			regProvinceModel.Longitude = p.Longitude
-			Model.DB.Create(&regProvinceModel)
+			gorm_support.DB.Create(&regProvinceModel)
 		}
 		var regProvinceDatas []Model.RegProvince
-		Model.DB.Find(&regProvinceDatas)
+		gorm_support.DB.Find(&regProvinceDatas)
 		// Loop through the retrieved records
 		// for _, regProvince := range regProvinceDatas {
 		// 	// Print each record (or perform other operations as needed)
@@ -92,7 +93,7 @@ func (a *InstallLocation) Install() {
 	fmt.Println("Install regency")
 	var count int64
 	regRegencyModel := Model.RegRegency{}
-	Model.DB.Model(&regRegencyModel).Count(&count)
+	gorm_support.DB.Model(&regRegencyModel).Count(&count)
 	if count == 0 {
 		data, err := os.ReadFile("db/seeders/json/reg_regencies_latlng.json")
 		if err != nil {
@@ -137,10 +138,10 @@ func (a *InstallLocation) Install() {
 				return
 			}
 			regRegencyModel.RegProvinceID = int64(pId)
-			Model.DB.Create(&regRegencyModel)
+			gorm_support.DB.Create(&regRegencyModel)
 		}
 		var regRegencyDatas []Model.RegRegency
-		Model.DB.Find(&regRegencyDatas)
+		gorm_support.DB.Find(&regRegencyDatas)
 		// Loop through the retrieved records
 		// for _, regRegency := range regRegencyDatas {
 		// 	// Print each record (or perform other operations as needed)
@@ -150,7 +151,7 @@ func (a *InstallLocation) Install() {
 
 	fmt.Println("Install district")
 	regDistrictModel := Model.RegDistrict{}
-	Model.DB.Model(&regDistrictModel).Count(&count)
+	gorm_support.DB.Model(&regDistrictModel).Count(&count)
 	if count == 0 {
 		data, err := os.ReadFile("db/seeders/json/reg_districts_latlng.json")
 		if err != nil {
@@ -187,10 +188,10 @@ func (a *InstallLocation) Install() {
 				return
 			}
 			regDistrictModel.RegRegencyID = int64(pId)
-			Model.DB.Create(&regDistrictModel)
+			gorm_support.DB.Create(&regDistrictModel)
 		}
 		var regDistrictDatas []Model.RegRegency
-		Model.DB.Find(&regDistrictDatas)
+		gorm_support.DB.Find(&regDistrictDatas)
 		// Loop through the retrieved records
 		// for _, regDistrict := range regDistrictDatas {
 		// 	// Print each record (or perform other operations as needed)
@@ -200,7 +201,7 @@ func (a *InstallLocation) Install() {
 
 	fmt.Println("Install village")
 	regVillageModel := Model.RegVillage{}
-	Model.DB.Model(&regVillageModel).Count(&count)
+	gorm_support.DB.Model(&regVillageModel).Count(&count)
 	if count == 0 {
 		data, err := os.ReadFile("db/seeders/json/reg_villages_latlng.json")
 		if err != nil {
@@ -236,10 +237,10 @@ func (a *InstallLocation) Install() {
 				return
 			}
 			regVillageModel.RegDistrictID = int64(pId)
-			Model.DB.Create(&regVillageModel)
+			gorm_support.DB.Create(&regVillageModel)
 		}
 		var regVillageDatas []Model.RegRegency
-		Model.DB.Find(&regVillageDatas)
+		gorm_support.DB.Find(&regVillageDatas)
 		// Loop through the retrieved records
 		// for _, regVillage := range regVillageDatas {
 		// 	// Print each record (or perform other operations as needed)

@@ -1,0 +1,2 @@
+ALTER TABLE rtrw_file
+ADD COLUMN validated_at TIMESTAMP NULL;

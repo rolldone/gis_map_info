@@ -8,6 +8,7 @@ import (
 
 type RdtrGroup struct {
 	Id         int64          `gorm:"primaryKey" json:"id,omitempty"`
+	Uuid       string         `gorm:"column:uuid" json:"uuid,omitempty"`
 	Rdtr_id    int64          `gorm:"column:rdtr_id" json:"rdtr_id"`
 	Properties datatypes.JSON `gorm:"column:properties;type:json" json:"properties"`
 	Status     string         `gorm:"column:status;type:varchar" json:"status"`
@@ -16,6 +17,12 @@ type RdtrGroup struct {
 	CreatedAt  time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt  time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
 	Datas      []RdtrFile     `gorm:"foreignKey:rdtr_group_id" json:"datas"`
+}
+
+type RdtrGroupView struct {
+	RdtrGroup
+	Unvalidated NullInt64 `gorm:"column:unvalidated" json:"unvalidated,omitempty"`
+	Validated   NullInt64 `gorm:"column:validated" json:"validated,omitempty"`
 }
 
 // Set the table name for the User model

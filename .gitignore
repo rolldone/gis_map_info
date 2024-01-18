@@ -10,3 +10,8 @@ img_gis_map_info_postgis/
 /storage
 /img_gis_map_info_node
 /node/files
+/img_gis_map_info_martin
+/sub_app/martin/mbtiles
+/sub_app/node/files
+/sub_app/node/node_modules
+/sub_app/martin/config.yaml

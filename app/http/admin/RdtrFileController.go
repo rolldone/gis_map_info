@@ -10,15 +10,15 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 
-	Model "gis_map_info/app/model"
 	Service "gis_map_info/app/service"
+	"gis_map_info/support/gorm_support"
 )
 
 type RdtrFileController struct{}
 
 func (c *RdtrFileController) GetByUUID(ctx *gin.Context) {
 
-	tx := Model.DB
+	tx := gorm_support.DB
 	rdtrFileService := Service.RdtrFileService{
 		DB: tx,
 	}
@@ -102,7 +102,7 @@ func (c *RdtrFileController) Add(ctx *gin.Context) {
 		})
 		return
 	}
-	tx := Model.DB.Begin()
+	tx := gorm_support.DB.Begin()
 	rdtrFIleService := Service.RdtrFileService{
 		DB: tx,
 	}

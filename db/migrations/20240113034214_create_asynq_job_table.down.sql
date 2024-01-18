@@ -1,0 +1,1 @@
+DROP TABLE asynq_job;

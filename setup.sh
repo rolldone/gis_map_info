@@ -37,7 +37,24 @@ else
 fi
 
 VOLUME_NAME="gis_map_info_node"
-HOST_DIR="$HOST_DIR/node"
+HOST_DIR="$HOST_DIR/sub_app/node"
+# Check if the volume already exists
+if docker volume inspect "$VOLUME_NAME" >/dev/null 2>&1; then
+  echo "Volume '$VOLUME_NAME' already exists. Skipping creation."
+else
+  # Create a Docker volume
+  docker volume create --driver local \
+    --opt type=none \
+    --opt device="$HOST_DIR" \
+    --opt o=bind \
+    "$VOLUME_NAME"
+
+  echo "Volume '$VOLUME_NAME' created."
+fi
+
+VOLUME_NAME="martin_config"
+HOST_DIR="$(pwd)"
+HOST_DIR="$HOST_DIR/sub_app/martin"
 # Check if the volume already exists
 if docker volume inspect "$VOLUME_NAME" >/dev/null 2>&1; then
   echo "Volume '$VOLUME_NAME' already exists. Skipping creation."

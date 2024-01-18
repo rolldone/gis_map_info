@@ -1,4 +1,4 @@
-package task
+package asynq_support
 
 import (
 	"context"

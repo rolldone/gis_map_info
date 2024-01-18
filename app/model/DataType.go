@@ -420,3 +420,7 @@ func (nt *NullTime) UnmarshalJSON(b []byte) error {
 	nt.Valid = true
 	return nil
 }
+
+func Float64(value float64) float64 {
+	return (value)
+}

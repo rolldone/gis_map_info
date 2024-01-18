@@ -1,11 +1,12 @@
-package task
+package asynq_support
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"gis_map_info/app/model"
-	"gis_map_info/app/pubsub"
+	"gis_map_info/support/gorm_support"
+	"gis_map_info/support/nats_support"
 	"io"
 	"log"
 	"net/http"
@@ -40,51 +41,78 @@ func NewValidateKmlTask(rdtr_group_id int, segment_group string) (*asynq.Task, e
 }
 
 func HandleValidateKmlTask(ctx context.Context, t *asynq.Task) error {
+
+	taskID, _ := asynq.GetTaskID(ctx)
+
+	asyncJObService := service.AsynqJobService{
+		DB:         gorm_support.DB,
+		Async_uuid: &taskID,
+	}
+
+	// Call construct
+	asyncJObService.Construct(taskID)
+	// Check the job is possible continue or not
+	// If not set status stopped
+	if !asyncJObService.IsPossibleContinue() {
+		fmt.Println("Async UUid ", taskID, " is stopped")
+		ctx.Done()
+		return nil
+	}
+
+	// Record first status
+	asyncJObService.UpdateByAsynqUUID(asyncJObService.GetStatus().STATUS_PROCESS, "Job is processed\n")
+
 	var p ValidateKmlPayload
 	if err := json.Unmarshal(t.Payload(), &p); err != nil {
 		return fmt.Errorf("json.Unmarshal failed: %v: %w", err, asynq.SkipRetry)
 	}
+
 	// fmt.Printf("Validate is running :: %v", p.Rdtr_group_id)
 	switch p.Segment_group {
 	case "rdtr":
-		tx := model.DB
+		tx := gorm_support.DB
 		fileService := service.RdtrFileService{
 			DB: tx,
 		}
+
 		geoJsonService := service.RdtrGeojsonService{
 			DB: tx,
 		}
+
+		// Delete exist rdtr geojson datas
 		err := geoJsonService.DeleteByRdtrGroupId(int64(p.Rdtr_group_id))
 		if err != nil {
 			fmt.Println("DeleteByRdtrGroupId(int64(p.Rdtr_group_id)) :: ", err)
 		}
+
 		rdtrFileDB := fileService.Gets(nil)
 		rdtrFIleDatas := []model.RdtrFile{}
 		err = rdtrFileDB.Preload("Rdtr_group").Preload("Rdtr").Where("rdtr_group_id = ? ", p.Rdtr_group_id).Find(&rdtrFIleDatas).Error
 		if err != nil {
 			fmt.Println("Validate rdtr :: ", err.Error())
 		}
-		ff, err := json.Marshal(rdtrFIleDatas)
-		if err != nil {
-			fmt.Println("Validate rdtr - marshal :: ", err.Error())
-		}
-		fmt.Println("\nrdtrFileDatas :: ", string(ff))
+
 		for i := 0; i < len(rdtrFIleDatas); i++ {
 			rdtrFileItem := rdtrFIleDatas[i]
 			payload := map[string]interface{}{}
 			payload["uuid"] = rdtrFileItem.UUID
 			payload["download"] = os.Getenv("APP_HOST") + "/api/admin/rdtr_file/assets/" + string(payload["uuid"].(string)+".kml")
 			payloadString, _ := json.Marshal(payload)
-			pubsub.NATS.Publish("convert_kml_geojson", payloadString)
+			// Publish the payload string
+			nats_support.NATS.Publish("convert_kml_geojson", payloadString)
 			uuidItem := payload["uuid"].(string)
-			ubsubcribeProcess, err := pubsub.NATS.Subscribe(uuidItem+"_process", func(msg *nats.Msg) {
-				fmt.Printf("\nReceived a message process: %s\n", string(msg.Data))
+
+			// And listen each event listener
+			ubsubcribeProcess, err := nats_support.NATS.Subscribe(uuidItem+"_process", func(msg *nats.Msg) {
+				fmt.Printf("\n ubsubcribeProcess : %s\n", string(msg.Data))
 			})
 			if err != nil {
-				fmt.Println("Validate rdtr - pubsub.NATS.Subscribe(uuidItem_process :: ", err.Error())
+				fmt.Println("Validate rdtr - nats_support.NATS.Subscribe(uuidItem_process :: ", err.Error())
 				continue
 			}
-			unSubscribeFinish, err := pubsub.NATS.SubscribeSync(uuidItem + "_done")
+
+			// Listen syncronize for _done event listener
+			unSubscribeFinish, err := nats_support.NATS.SubscribeSync(uuidItem + "_done")
 			if err != nil {
 				log.Fatal(err)
 				continue
@@ -98,7 +126,7 @@ func HandleValidateKmlTask(ctx context.Context, t *asynq.Task) error {
 			// Infinite loop to listen for messages
 			for messageCount < maxMessages {
 				// Wait for a message
-				msg, err = unSubscribeFinish.NextMsg(1 * time.Second) // Timeout after 5 seconds if no message
+				msg, err = unSubscribeFinish.NextMsg(5 * time.Second) // Timeout after 5 seconds if no message
 				if err != nil {
 					if err == nats.ErrTimeout {
 						fmt.Println("Timed out waiting for a message.", messageCount)
@@ -109,17 +137,20 @@ func HandleValidateKmlTask(ctx context.Context, t *asynq.Task) error {
 				}
 
 				// Process the received message
-				fmt.Printf("Received message: %s\n", msg.Data)
+				fmt.Printf("\n unSubscribeFinish: %s\n", msg.Data)
 				break
 			}
+
 			if err := ubsubcribeProcess.Unsubscribe(); err != nil {
 				fmt.Printf("Error unsubscribing process: %v\n", err)
 				continue
 			}
+
 			if err := unSubscribeFinish.Unsubscribe(); err != nil {
 				fmt.Printf("Error unsubscribing done: %v\n", err)
 				continue
 			}
+
 			if msg != nil {
 				resData := map[string]interface{}{}
 				err := json.Unmarshal(msg.Data, &resData)
@@ -135,9 +166,25 @@ func HandleValidateKmlTask(ctx context.Context, t *asynq.Task) error {
 				if err != nil {
 					fmt.Println("Unmarshal([]byte(rdtrFileItem.Rdtr_group.Properties), &groupProperty) :: ", err)
 				}
-				generateGeometry(int(rdtrFileItem.Rdtr_id.Int64), int(rdtrFileItem.Rdtr_group_id.Int64), int(rdtrFileItem.Id), groupProperty, filePath)
-			}
 
+				isWarning := generateRdtrGeometry(func(message string) {
+					asyncJObService.UpdateByAsynqUUID(asyncJObService.GetStatus().STATUS_PROCESS, message)
+				}, int(rdtrFileItem.Rdtr_id.Int64), int(rdtrFileItem.Rdtr_group_id.Int64), int(rdtrFileItem.Id), groupProperty, filePath)
+				if !isWarning {
+					now := time.Now()
+					fmt.Println("Validated ", rdtrFileItem.Id)
+					err := fileService.DB.Model(&model.RdtrFile{}).Where("id = ?", rdtrFileItem.Id).Update("validated_at", now).Error
+					if err != nil {
+						fmt.Println("Update(validated_at, now) :: ", err)
+					}
+					// Record status
+					asyncJObService.UpdateByAsynqUUID(asyncJObService.GetStatus().STATUS_COMPLETED, "Job is completed \n")
+				} else {
+					fmt.Println("Unvalidated", rdtrFileItem.Id)
+					// Record status
+					asyncJObService.UpdateByAsynqUUID(asyncJObService.GetStatus().STATUS_FAILED, "Job is failed \n")
+				}
+			}
 		}
 	case "rtrw":
 	case "zlp":
@@ -178,9 +225,10 @@ func downloadFileJSON(dir_path string, path string) {
 	fmt.Println("File downloaded successfully!")
 }
 
-func generateGeometry(rdtr_id int, rdtr_group_id int, rdtr_file_id int, property map[string]interface{}, path string) {
+func generateRdtrGeometry(gg func(message string), rdtr_id int, rdtr_group_id int, rdtr_file_id int, property map[string]interface{}, path string) bool {
+	rdtr_ids_warnings := false
 	rdtrGeojsonService := service.RdtrGeojsonService{
-		DB: model.DB,
+		DB: gorm_support.DB,
 	}
 	readFile, err := os.ReadFile(path)
 	if err != nil {
@@ -194,7 +242,8 @@ func generateGeometry(rdtr_id int, rdtr_group_id int, rdtr_file_id int, property
 	}
 
 	// Print the slice to see the JSON content in Go format
-	for a := 0; a < len(dataArray); a++ {
+	_total := len(dataArray)
+	for a := 0; a < _total; a++ {
 		arrItem := dataArray[a]
 		if arrItem["properties"] == nil {
 			fmt.Println("kosong")
@@ -208,6 +257,10 @@ func generateGeometry(rdtr_id int, rdtr_group_id int, rdtr_file_id int, property
 		uuidValue, _ := uuid.NewRandom()
 		rdtrGeojsonPayloadAdd.Uuid = uuidValue.String()
 		propertiesByte, _ := json.Marshal(arrItem["properties"])
+		time.Sleep(100 * time.Millisecond)
+		currentTime := time.Now()
+		UnixNano := currentTime.UnixNano()
+		rdtrGeojsonPayloadAdd.Order_number = UnixNano + int64(a)
 		rdtrGeojsonPayloadAdd.Properties = propertiesByte
 		rdtrGeojsonPayloadAdd.Rdtr_file_id = int64(rdtr_file_id)
 		rdtrGeojsonPayloadAdd.Rdtr_group_id = int64(rdtr_group_id)
@@ -217,8 +270,15 @@ func generateGeometry(rdtr_id int, rdtr_group_id int, rdtr_file_id int, property
 		resRdtrGeoJsonAdd, err := rdtrGeojsonService.Add(rdtrGeojsonPayloadAdd)
 		if err != nil {
 			fmt.Println("rdtrGeojsonService.Add(rdtrGeojsonPayloadAdd) :: ", err)
+			gg("Job Failed Process")
+			rdtr_ids_warnings = true
+			continue
 		}
-		fmt.Println("resRdtrGeoJsonAdd", resRdtrGeoJsonAdd)
-	}
+		gg(fmt.Sprint("Job process :: ", path, " :: ", _total, " > ", a, "\n"))
+		fmt.Println(path, " - ", _total, " - ", a)
+		// Ignore it
+		_ = resRdtrGeoJsonAdd
 
+	}
+	return rdtr_ids_warnings
 }

@@ -81,14 +81,19 @@ function loadKMl(filePath) {
                     let geojson_data = ts.kml(kml);
                     let collections = [];
                     let props = {
-                        index : 0
+                        index: 0
                     };
+                    for (let a = 0; a < geojson_data.features.length; a++) {
+                        let featureItem = geojson_data.features[a]
+                        collectionGeometryCollectionType(featureItem.geometry, featureItem.properties, collections, props);
+                    }
                     for (let a = 0; a < geojson_data.features.length; a++) {
                         let featureItem = geojson_data.features[a]
                         collectionGeometryCollectionType(featureItem.geometry, featureItem.properties, collections, props);
                     }
                     resolve([collections, null]);
                 } catch (error) {
+                    console.log("geojson_data = ts.kml(kml) :: ", error)
                     resolve([[], error])
                 }
             })
@@ -116,7 +121,7 @@ function collectionGeometryCollectionType(geometry, properties, collection = [],
     } else {
         collection.push({
             type: "Feature",
-            geometry: geometry,
+            geometry: convertPolygonZ_to_Polygon(geometry),
             properties,
         })
     }
@@ -124,4 +129,13 @@ function collectionGeometryCollectionType(geometry, properties, collection = [],
     return collection;
 }
 
+function convertPolygonZ_to_Polygon(geometry) {
+    // Convert Polygonz to 2D Polygon by removing z-coordinate values
+    for (let a = 0; a < geometry.coordinates.length; a++) {
+        const coordinates2D = geometry.coordinates[a].map(coord => [coord[0], coord[1]]);
+        // console.log("vmakfavmkfvm --> ", coordinates2D);
+        geometry.coordinates[a] = coordinates2D;
+    }
+    return geometry;
+}
 main()
