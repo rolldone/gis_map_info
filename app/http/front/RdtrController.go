@@ -1,6 +1,7 @@
 package front
 
 import (
+	"fmt"
 	"gis_map_info/app/model"
 	"gis_map_info/app/service"
 	"gis_map_info/support/gorm_support"
@@ -10,9 +11,10 @@ import (
 )
 
 type RdtrControllerType struct {
-	Gets          func(*gin.Context)
-	GetByUUID     func(*gin.Context)
-	GetByPosition func(*gin.Context)
+	Gets                     func(*gin.Context)
+	GetByUUID                func(*gin.Context)
+	GetByPosition            func(*gin.Context)
+	GetRegenciesByProvinceId func(*gin.Context)
 }
 
 func RdtrController() RdtrControllerType {
@@ -23,9 +25,11 @@ func RdtrController() RdtrControllerType {
 		DB: gorm_support.DB,
 	}
 	getRdtrs := func(ctx *gin.Context) {
+		reg_province_id := ctx.DefaultQuery("reg_province_id", "")
 		rdtr_datas := []model.RdtrType{}
 		rdtrDAtaDb := RdtrService.Gets()
-		err := rdtrDAtaDb.Preload("Rdtr_mbtiles").Where("status = ?", "active").Find(&rdtr_datas).Error
+		fmt.Println("reg_province_id:: ", reg_province_id)
+		err := rdtrDAtaDb.Preload("Rdtr_mbtiles").Where("reg_province_id = ?", reg_province_id).Where("status = ?", "active").Find(&rdtr_datas).Error
 		if err != nil {
 			if err != nil {
 				ctx.JSON(400, gin.H{
@@ -73,9 +77,14 @@ func RdtrController() RdtrControllerType {
 		ctx.JSON(200, gin.H{"message": "getRdtrByUUID endpoint"})
 	}
 
+	getRegenciesByPronvinceId := func(ctx *gin.Context) {
+		ctx.JSON(200, gin.H{"message": "getRdtrByUUID endpoint"})
+	}
+
 	return RdtrControllerType{
-		Gets:          getRdtrs,
-		GetByUUID:     getRdtrByUUID,
-		GetByPosition: getByPosition,
+		Gets:                     getRdtrs,
+		GetByUUID:                getRdtrByUUID,
+		GetByPosition:            getByPosition,
+		GetRegenciesByProvinceId: getRegenciesByPronvinceId,
 	}
 }

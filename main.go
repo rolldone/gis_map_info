@@ -143,10 +143,15 @@ func main() {
 		api.GET("rdtr/rdtrs", frontRdtrController.Gets)
 		api.GET("rdtr/:id/view", frontRdtrController.GetByUUID)
 		api.GET("rdtr/position/:latlng", frontRdtrController.GetByPosition)
+		api.GET("rdtr/regencies/:province_id", frontRdtrController.GetRegenciesByProvinceId)
 
 		frontRtrwController := FrontController.RtrwController()
 		api.GET("rtrw/rtrws", frontRtrwController.Gets)
 		api.GET("rtrw/:id/view", frontRtrwController.GetByUUID)
+
+		locationController := FrontController.LocationController{}
+		api.GET("location/provinces/exists", locationController.GetsProvinceDistincExist)
+
 	}
 
 	go func() {
