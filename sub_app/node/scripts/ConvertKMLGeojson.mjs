@@ -87,10 +87,7 @@ function loadKMl(filePath) {
                         let featureItem = geojson_data.features[a]
                         collectionGeometryCollectionType(featureItem.geometry, featureItem.properties, collections, props);
                     }
-                    for (let a = 0; a < geojson_data.features.length; a++) {
-                        let featureItem = geojson_data.features[a]
-                        collectionGeometryCollectionType(featureItem.geometry, featureItem.properties, collections, props);
-                    }
+                    
                     resolve([collections, null]);
                 } catch (error) {
                     console.log("geojson_data = ts.kml(kml) :: ", error)
