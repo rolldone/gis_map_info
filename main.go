@@ -152,6 +152,8 @@ func main() {
 		locationController := FrontController.LocationController{}
 		api.GET("location/provinces/exists", locationController.GetsProvinceDistincExist)
 
+		api.GET("test/sse", FrontController.Testsse)
+
 	}
 
 	go func() {

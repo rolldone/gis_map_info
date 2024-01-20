@@ -29,6 +29,7 @@ type AsynqJobAddPayload struct {
 }
 
 type asyncJobStatus struct {
+	STATUS_WAITING   string
 	STATUS_PENDING   string
 	STATUS_PROCESS   string
 	STATUS_FAILED    string
@@ -38,6 +39,7 @@ type asyncJobStatus struct {
 
 func (c *AsynqJobService) GetStatus() asyncJobStatus {
 	return asyncJobStatus{
+		STATUS_WAITING:   "WAITING",
 		STATUS_PENDING:   "PENDING",
 		STATUS_PROCESS:   "PROCESS",
 		STATUS_FAILED:    "FAILED",

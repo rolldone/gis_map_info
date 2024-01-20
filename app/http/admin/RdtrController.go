@@ -1,13 +1,14 @@
 package admin
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"gis_map_info/app/helper"
 	Helper "gis_map_info/app/helper"
 	"gis_map_info/app/model"
 	Model "gis_map_info/app/model"
-	"gis_map_info/app/service"
 	Service "gis_map_info/app/service"
 	"gis_map_info/support/asynq_support"
 	"gis_map_info/support/gorm_support"
@@ -24,7 +25,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/hibiken/asynq"
-	"github.com/nxadm/tail"
 	"gopkg.in/yaml.v3"
 	"gorm.io/gorm"
 )
@@ -594,6 +594,9 @@ func (a *RdtrController) ValidateKml(ctx *gin.Context) {
 	asyncJObService := Service.AsynqJobService{
 		DB: gorm_support.DB,
 	}
+
+	var queue_ids []map[string]interface{}
+
 	for i := 0; i < len(props.Rdtr_group_ids); i++ {
 		fmt.Println("props.Rdtr_group_ids[i]", props.Rdtr_group_ids[i])
 		taskk, err := asynq_support.NewValidateKmlTask(props.Rdtr_group_ids[i], "rdtr")
@@ -607,6 +610,11 @@ func (a *RdtrController) ValidateKml(ctx *gin.Context) {
 		}
 
 		fmt.Println("Task info :: ", gg.ID, " :: ", gg.Queue, " :: ", gg.Type)
+
+		queue_ids = append(queue_ids, map[string]interface{}{
+			"id":       props.Rdtr_group_ids[i],
+			"asynq_id": gg.ID,
+		})
 
 		rdtrGroupItemData := Model.RdtrGroup{}
 		err = rdtrService.GetRdtrGroups().Where("id = ?", props.Rdtr_group_ids[i]).First(&rdtrGroupItemData).Error
@@ -630,7 +638,7 @@ func (a *RdtrController) ValidateKml(ctx *gin.Context) {
 		// log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
 	}
 	ctx.JSON(200, gin.H{
-		"return":      props,
+		"return":      queue_ids,
 		"status":      "success",
 		"status_code": 200,
 	})
@@ -654,19 +662,25 @@ type TheClient struct {
 
 var conWs []TheClient
 
+type aty2type struct {
+	Line_number int
+	Is_run      bool
+}
+
 func (a *RdtrController) HandleWS(ctx *gin.Context) {
+	var asynq_ids = map[string]*aty2type{}
 	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	ttail := []*tail.Tail{}
-	rdtr_group_uuids := []string{}
+	var checkStatusRdtrGroupClose func() bool
+
 	closeAllTail := func() {
-		for _, v := range ttail {
+		for _, v := range asynq_ids {
 			fmt.Println("File are closed")
-			v.Stop()
+			v.Is_run = false
 		}
 	}
 
@@ -676,6 +690,9 @@ func (a *RdtrController) HandleWS(ctx *gin.Context) {
 				fmt.Printf("websocket %v from client is closed \n", i)
 				closeAllTail()
 				v.Conn.Close()
+				if checkStatusRdtrGroupClose != nil {
+					checkStatusRdtrGroupClose()
+				}
 				conWs = Helper.RemoveIndex(conWs, i)
 				break
 			}
@@ -686,6 +703,7 @@ func (a *RdtrController) HandleWS(ctx *gin.Context) {
 		Id:   uuid.New().String(),
 		Conn: conn,
 	}
+
 	conWs = append(conWs, clientThe)
 
 	for {
@@ -695,106 +713,121 @@ func (a *RdtrController) HandleWS(ctx *gin.Context) {
 			return
 		}
 
-		err = conn.WriteMessage(websocket.TextMessage, []byte("You are join"))
+		dataParse := map[string]interface{}{}
+		err = json.Unmarshal(message, &dataParse)
 		if err != nil {
 			log.Println(err)
 			return
 		}
 
-		if clientThe.loopingCheck == nil {
-			ids := []int64{}
-			err = json.Unmarshal([]byte(message), &ids)
+		var action string = dataParse["action"].(string)
+		switch action {
+		case "CHECK_VALIDATED":
+			if checkStatusRdtrGroupClose == nil {
+				jj, ok := dataParse["group_ids"]
+				if !ok {
+					log.Println("Problem check interface")
+				}
+
+				// Create a new slice of int64
+				int64Slice := helper.SliceOfInt64(jj)
+				checkStatusRdtrGroupClose = checkStatusRdtrGroupClousure(conn, int64Slice)
+			}
+
+		case "TAIL":
+			var asynq_id string = dataParse["asynq_id"].(string)
+			if (asynq_ids)[asynq_id] == nil {
+				(asynq_ids)[asynq_id] = &aty2type{
+					Is_run:      true,
+					Line_number: 0,
+				}
+
+			} else {
+				asynq_ids[asynq_id].Is_run = !asynq_ids[asynq_id].Is_run
+			}
+			if asynq_ids[asynq_id].Is_run {
+				go func(conn *websocket.Conn, ass *aty2type) {
+					for ass.Is_run {
+						tailLog(conn, asynq_id, ass)
+						time.Sleep(2 * time.Second)
+					}
+				}(conn, asynq_ids[asynq_id])
+			}
+		}
+	}
+}
+
+func checkStatusRdtrGroupClousure(conn *websocket.Conn, ids []int64) func() bool {
+	is_loop := true
+	go func(ids []int64, s *bool) {
+		for *s {
+			var group_ids []int64 = ids
+			rdtr_group_datas, err := checkStatusRdtrGroups(group_ids)
 			if err != nil {
 				conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
 				conn.Close()
 				return
 			}
-			clientThe.loopingCheck = func() {
-				go func(conn *websocket.Conn, ids []int64) {
-					for {
-						isExist := false
-						for _, v := range conWs {
-							if v.Conn == conn {
-								isExist = true
-							}
-						}
-						if !isExist {
-							break
-						}
-						time.Sleep(3 * time.Second)
-						rdtr_group_datas, err := checkStatusRdtrGroups(ids)
-						if err != nil {
-							conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
-							conn.Close()
-							return
-						}
-						rdtr_group_datas_str, err := json.Marshal(rdtr_group_datas)
-						if err != nil {
-							conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
-							conn.Close()
-							return
-						}
-						// fmt.Println("Jalan terus")
-						// fmt.Println("rdtr_group_datas :: ", string(rdtr_group_datas_str))
-						conn.WriteMessage(websocket.TextMessage, []byte(rdtr_group_datas_str))
-					}
-					fmt.Println("Exit goroutine :: Websocket")
-				}(conn, ids)
+			// rdtr_group_datas_str, err := json.Marshal(rdtr_group_datas)
+			// if err != nil {
+			// 	conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+			// 	conn.Close()
+			// 	return
+			// }
+			fmt.Println("Jalan terus")
+			textT := map[string]interface{}{}
+			textT["from"] = "check_group"
+			textT["message"] = rdtr_group_datas
+			textTSTrng, _ := json.Marshal(textT)
+			conn.WriteMessage(websocket.TextMessage, textTSTrng)
+			time.Sleep(5 * time.Second)
+		}
+		fmt.Println("Berhenti")
+	}(ids, &is_loop)
+	return func() bool {
+		is_loop = false
+		return is_loop
+	}
+}
 
-				for _, v := range ids {
-					// Get the rdtr_group
-					rdtrService := service.RdtrService{
-						DB: gorm_support.DB,
-					}
-					rdtr_groupItem := model.RdtrGroup{}
-					rdtr_groupDB := rdtrService.GetRdtrGroups()
-					err = rdtr_groupDB.Where("id = ?", v).First(&rdtr_groupItem).Error
-					if err != nil {
-						log.Fatalf(err.Error())
-						return
-					}
-					// Get the asynq_job
-					asynqJobService := service.AsynqJobService{
-						DB: gorm_support.DB,
-					}
-					asynqJobData := model.AsynqJob{}
-					asynqJob_DB := asynqJobService.Gets()
-					err = asynqJob_DB.Where("app_uuid = ?", rdtr_groupItem.Uuid).Order("created_at DESC").First(&asynqJobData).Error
-					if err != nil {
-						log.Fatalf(err.Error())
-						return
-					}
-					// Create a tail
-					t, err := tail.TailFile(
-						fmt.Sprint("./storage/log/job/", asynqJobData.Asynq_uuid, ".log"), tail.Config{Follow: true, ReOpen: true})
-					if err != nil {
-						log.Fatalf(err.Error())
-						return
-					}
-					ttail = append(ttail, t)
-					rdtr_group_uuids = append(rdtr_group_uuids, asynqJobData.App_uuid)
-				}
-				for i, v := range ttail {
-					go func(conn *websocket.Conn, v *tail.Tail, s string) {
-						// Print the text of each received line
-						for line := range v.Lines {
-							textT := map[string]interface{}{}
-							textT["from"] = s
-							textT["message"] = line.Text
-							textTSTrng, _ := json.Marshal(textT)
-							conn.WriteMessage(websocket.TextMessage, textTSTrng)
-						}
-						fmt.Println("Read file Done :: ", s)
-					}(conn, v, rdtr_group_uuids[i])
-				}
-			}
-			clientThe.loopingCheck()
-		} else {
-			// fmt.Println("Udah di register")
-			// This is allready register
+func tailLog(conn *websocket.Conn, asynq_id string, asyncItem *aty2type) {
+	ff, err := os.Open(fmt.Sprint("./storage/log/job/", asynq_id, ".log"))
+
+	if err != nil {
+		log.Println("tailLog :: ", err)
+	}
+
+	fmt.Println("Tail ", asynq_id, " still running")
+
+	ggNewReader := bufio.NewReader(ff)
+
+	// Skip lines until the desired starting line
+	for i := 1; i < int((*asyncItem).Line_number); i++ {
+		_, err := ggNewReader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error skipping lines:", err)
+			return
 		}
 	}
 
+	// Create a scanner to read the file line by line from the desired starting line
+	kkNewScanner := bufio.NewScanner(ggNewReader)
+
+	// Process or print lines as needed
+	for kkNewScanner.Scan() {
+		(*asyncItem).Line_number = (*asyncItem).Line_number + 1
+		textT := map[string]interface{}{}
+		textT["from"] = asynq_id
+		textT["message"] = kkNewScanner.Text()
+		textTSTrng, _ := json.Marshal(textT)
+		conn.WriteMessage(websocket.TextMessage, textTSTrng)
+	}
+
+	if kkNewScanner.Err() != nil {
+		fmt.Println("Error reading file:", kkNewScanner.Err())
+		// (*asyncItem).Is_run = false
+		return
+	}
 }
 
 func checkStatusRdtrGroups(ids []int64) ([]Model.RdtrGroupView, error) {

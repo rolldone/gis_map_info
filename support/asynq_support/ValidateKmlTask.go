@@ -126,10 +126,11 @@ func HandleValidateKmlTask(ctx context.Context, t *asynq.Task) error {
 			// Infinite loop to listen for messages
 			for messageCount < maxMessages {
 				// Wait for a message
-				msg, err = unSubscribeFinish.NextMsg(5 * time.Second) // Timeout after 5 seconds if no message
+				msg, err = unSubscribeFinish.NextMsg(1 * time.Second) // Timeout after 5 seconds if no message
 				if err != nil {
 					if err == nats.ErrTimeout {
 						fmt.Println("Timed out waiting for a message.", messageCount)
+						asyncJObService.UpdateByAsynqUUID(asyncJObService.GetStatus().STATUS_WAITING, "Job is waiting \n")
 						messageCount++
 						continue
 					}
@@ -184,6 +185,8 @@ func HandleValidateKmlTask(ctx context.Context, t *asynq.Task) error {
 					// Record status
 					asyncJObService.UpdateByAsynqUUID(asyncJObService.GetStatus().STATUS_FAILED, "Job is failed \n")
 				}
+			} else {
+				asyncJObService.UpdateByAsynqUUID(asyncJObService.GetStatus().STATUS_FAILED, "Job is timeout \n")
 			}
 		}
 	case "rtrw":
