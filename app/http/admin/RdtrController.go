@@ -595,6 +595,12 @@ func (a *RdtrController) ValidateKml(ctx *gin.Context) {
 		DB: gorm_support.DB,
 	}
 
+	// Reset rdtr file remove validated_at
+	rdtrFileService := Service.RdtrFileService{
+		DB: gorm_support.DB,
+	}
+	rdtrFileService.Unvalidated(props.Rdtr_group_ids)
+
 	var queue_ids []map[string]interface{}
 
 	for i := 0; i < len(props.Rdtr_group_ids); i++ {

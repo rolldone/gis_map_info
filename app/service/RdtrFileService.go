@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"gis_map_info/app/model"
 	Model "gis_map_info/app/model"
 
 	"gorm.io/gorm"
@@ -77,4 +78,12 @@ func (c *RdtrFileService) GetById(id int) (Model.RdtrFile, error) {
 		return Model.RdtrFile{}, err
 	}
 	return rdtrFile, nil
+}
+
+func (c *RdtrFileService) Unvalidated(ids []int) error {
+	err := c.DB.Model(model.RdtrFile{}).Where("rdtr_group_id IN ?", ids).Update("validated_at", nil).Error
+	if err != nil {
+		return err
+	}
+	return nil
 }
