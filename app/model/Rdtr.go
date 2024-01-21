@@ -13,6 +13,9 @@ type RdtrType struct {
 	Place_string   string          `gorm:"type:uint;column:place_string" json:"place_string"`
 	Rdtr_groups    []RdtrGroupView `gorm:"foreignKey:rdtr_id" json:"rdtr_groups"`
 	Rdtr_mbtiles   []RdtrMbtile    `gorm:"foreignKey:rdtr_id" json:"rdtr_mbtiles"`
+	Reg_province   RegProvince     `gorm:"foreignKey:RegProvince_id" json:"reg_province,omitempty"`
+	Reg_regency    RegRegency      `gorm:"foreignKey:RegRegency_id" json:"reg_regency,omitempty"`
+	Reg_district   RegDistrict     `gorm:"foreignKey:RegDistrict_id" json:"reg_district,omitempty"`
 	CreatedAt      time.Time       `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt      time.Time       `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
 }

@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"gis_map_info/app/model"
 	Model "gis_map_info/app/model"
 
@@ -36,7 +35,6 @@ type random_o29mamivm289 struct {
 
 func (c *RdtrFileService) Update(props random_o29mamivm289) (Model.RdtrFile, error) {
 	rdtrFile := Model.RdtrFile{}
-	fmt.Println("bvbbbbbbbbbbbbbb", props.Id)
 	c.DB.Where("id = ?", props.Id).First(&rdtrFile)
 	rdtrFile.Rdtr_group_id = Model.NullInt64{
 		Valid: true,

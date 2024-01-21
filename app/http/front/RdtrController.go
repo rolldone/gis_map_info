@@ -30,7 +30,11 @@ func RdtrController() RdtrControllerType {
 		rdtr_datas := []model.RdtrType{}
 		rdtrDAtaDb := RdtrService.Gets()
 		fmt.Println("reg_province_id:: ", reg_province_id)
-		err := rdtrDAtaDb.Preload("Rdtr_mbtiles").Where("reg_province_id = ?", reg_province_id).Where("status = ?", "active").Find(&rdtr_datas).Error
+		err := rdtrDAtaDb.
+			Preload("Reg_province").
+			Preload("Reg_regency").
+			Preload("Reg_district").
+			Preload("Rdtr_mbtiles").Where("reg_province_id = ?", reg_province_id).Where("status = ?", "active").Find(&rdtr_datas).Error
 		if err != nil {
 			if err != nil {
 				ctx.JSON(400, gin.H{

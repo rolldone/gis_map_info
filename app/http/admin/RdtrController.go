@@ -20,9 +20,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/benpate/convert"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/hibiken/asynq"
 	"gopkg.in/yaml.v3"
@@ -61,7 +61,11 @@ func (a *RdtrController) GetRdtrsPaginate(ctx *gin.Context) {
 	var offset = (page - 1) * limit
 
 	// Fetch data from the database
-	if err := rdtrDB.Preload("Rdtr_groups").
+	if err := rdtrDB.
+		Preload("Reg_province").
+		Preload("Reg_regency").
+		Preload("Reg_district").
+		Preload("Rdtr_groups").
 		Preload("Rdtr_groups.Datas").
 		Limit(limit).Offset(offset).Order("updated_at DESC").Find(&rdtrDatas).Error; err != nil {
 		fmt.Println("Error - 29mvamfivm2 ", err)
@@ -96,10 +100,13 @@ func (a *RdtrController) GetRdtrById(ctx *gin.Context) {
 	rdtrDB := RdtrService.GetById(id)
 	var rdtrData = Model.RdtrType{}
 	// Fetch data from the database
-	if err := rdtrDB.Preload("Rdtr_groups", func(db *gorm.DB) *gorm.DB {
-		return db.Select("rdtr_group.*, COALESCE((SELECT COUNT(*) FROM rdtr_file  WHERE rdtr_file.rdtr_group_id = rdtr_group.id AND rdtr_file.validated_at IS NULL),0) AS unvalidated, " +
-			"COALESCE((SELECT COUNT(*) FROM rdtr_file WHERE rdtr_file.rdtr_group_id = rdtr_group.id AND rdtr_file.validated_at IS NOT NULL),0) as validated")
-	}).
+	if err := rdtrDB.
+		Preload("Reg_province").
+		Preload("Reg_district").
+		Preload("Rdtr_groups", func(db *gorm.DB) *gorm.DB {
+			return db.Select("rdtr_group.*, COALESCE((SELECT COUNT(*) FROM rdtr_file  WHERE rdtr_file.rdtr_group_id = rdtr_group.id AND rdtr_file.validated_at IS NULL),0) AS unvalidated, " +
+				"COALESCE((SELECT COUNT(*) FROM rdtr_file WHERE rdtr_file.rdtr_group_id = rdtr_group.id AND rdtr_file.validated_at IS NOT NULL),0) as validated")
+		}).
 		Preload("Rdtr_mbtiles").
 		Preload("Rdtr_groups.Datas").First(&rdtrData).Error; err != nil {
 		fmt.Println("Error:", err)
@@ -370,12 +377,10 @@ func (a *RdtrController) UpdateRdtr(ctx *gin.Context) {
 				rdtrFileProps.Id = int64(Helper.GetValue(rdtrFileItem["id"], 0).(float64))
 				rdtrFileProps.Rdtr_group_id = rdtrGroupuResult.Id
 				rdtrFileProps.Rdtr_id = rdtrData.Id
-				ll, err3 := rdtrFileService.Update(rdtrFileProps)
+				_, err3 := rdtrFileService.Update(rdtrFileProps)
 				if err3 != nil {
 					err = err3
 				}
-				fmt.Println("rdtrFileItem ", ll)
-
 			}
 		}
 	}
@@ -660,14 +665,6 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-type TheClient struct {
-	Id           string
-	Conn         *websocket.Conn
-	loopingCheck func()
-}
-
-var conWs []TheClient
-
 type aty2type struct {
 	Line_number int
 	Is_run      bool
@@ -681,36 +678,23 @@ func (a *RdtrController) HandleWS(ctx *gin.Context) {
 		return
 	}
 
+	var checkStatusAsynqClose func() bool
 	var checkStatusRdtrGroupClose func() bool
 
-	closeAllTail := func() {
+	defer func() {
+		fmt.Println("Websocket from client is closed")
+		if checkStatusRdtrGroupClose != nil {
+			checkStatusRdtrGroupClose()
+		}
+		if checkStatusAsynqClose != nil {
+			checkStatusAsynqClose()
+		}
 		for _, v := range asynq_ids {
 			fmt.Println("File are closed")
 			v.Is_run = false
 		}
-	}
-
-	defer func() {
-		for i, v := range conWs {
-			if conn == v.Conn {
-				fmt.Printf("websocket %v from client is closed \n", i)
-				closeAllTail()
-				v.Conn.Close()
-				if checkStatusRdtrGroupClose != nil {
-					checkStatusRdtrGroupClose()
-				}
-				conWs = Helper.RemoveIndex(conWs, i)
-				break
-			}
-		}
+		conn.Close()
 	}()
-
-	clientThe := TheClient{
-		Id:   uuid.New().String(),
-		Conn: conn,
-	}
-
-	conWs = append(conWs, clientThe)
 
 	for {
 		_, message, err := conn.ReadMessage()
@@ -728,11 +712,23 @@ func (a *RdtrController) HandleWS(ctx *gin.Context) {
 
 		var action string = dataParse["action"].(string)
 		switch action {
+		case "CHECK_ASYNQ_STATUS":
+			if checkStatusAsynqClose == nil {
+				jj, ok := dataParse["uuids"]
+				if !ok {
+					log.Println("Problem check interface")
+					return
+				}
+				// Create a new slice of string
+				stringSlice := convert.SliceOfString(jj)
+				checkStatusAsynqClose = checkAsynqStatusClosure(conn, stringSlice)
+			}
 		case "CHECK_VALIDATED":
 			if checkStatusRdtrGroupClose == nil {
 				jj, ok := dataParse["group_ids"]
 				if !ok {
 					log.Println("Problem check interface")
+					return
 				}
 
 				// Create a new slice of int64
@@ -763,6 +759,31 @@ func (a *RdtrController) HandleWS(ctx *gin.Context) {
 	}
 }
 
+func checkAsynqStatusClosure(conn *websocket.Conn, uuids []string) func() bool {
+	is_loop := true
+	go func(uuids []string, s *bool) {
+		for *s {
+			fmt.Println("checkAsynqStatusClosure - running")
+			asynq_datas, err := checkStatusAsynqStatus(uuids)
+			if err != nil {
+				log.Println("checkAsynqStatusClosure - err", err)
+				return
+			}
+			textT := map[string]interface{}{}
+			textT["from"] = "check_asynq_status"
+			textT["message"] = asynq_datas
+			textTSTrng, _ := json.Marshal(textT)
+			conn.WriteMessage(websocket.TextMessage, textTSTrng)
+			time.Sleep(5 * time.Second)
+		}
+		fmt.Println("checkAsynqStatusClosure - stop")
+	}(uuids, &is_loop)
+	return func() bool {
+		is_loop = false
+		return is_loop
+	}
+}
+
 func checkStatusRdtrGroupClousure(conn *websocket.Conn, ids []int64) func() bool {
 	is_loop := true
 	go func(ids []int64, s *bool) {
@@ -771,16 +792,9 @@ func checkStatusRdtrGroupClousure(conn *websocket.Conn, ids []int64) func() bool
 			rdtr_group_datas, err := checkStatusRdtrGroups(group_ids)
 			if err != nil {
 				conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
-				conn.Close()
 				return
 			}
-			// rdtr_group_datas_str, err := json.Marshal(rdtr_group_datas)
-			// if err != nil {
-			// 	conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
-			// 	conn.Close()
-			// 	return
-			// }
-			fmt.Println("Jalan terus")
+			fmt.Println("checkStatusRdtrGroupClousure - running")
 			textT := map[string]interface{}{}
 			textT["from"] = "check_group"
 			textT["message"] = rdtr_group_datas
@@ -788,7 +802,7 @@ func checkStatusRdtrGroupClousure(conn *websocket.Conn, ids []int64) func() bool
 			conn.WriteMessage(websocket.TextMessage, textTSTrng)
 			time.Sleep(5 * time.Second)
 		}
-		fmt.Println("Berhenti")
+		fmt.Println("checkStatusRdtrGroupClousure - stop")
 	}(ids, &is_loop)
 	return func() bool {
 		is_loop = false
@@ -852,4 +866,19 @@ func checkStatusRdtrGroups(ids []int64) ([]Model.RdtrGroupView, error) {
 	}
 
 	return rdtr_group_datas, err
+}
+
+func checkStatusAsynqStatus(uuids []string) ([]Model.AsyncJobView, error) {
+
+	asynq_job_service := Service.AsynqJobService{
+		DB: gorm_support.DB,
+	}
+	asynq_datas := []Model.AsyncJobView{}
+	async_job_db := asynq_job_service.Gets()
+	err := async_job_db.Where("asynq_uuid IN ?", uuids).Find(&asynq_datas).Error
+	if err != nil {
+		log.Println("checkStatusAsynqStatus - err :: ", err)
+		return []Model.AsyncJobView{}, nil
+	}
+	return asynq_datas, nil
 }

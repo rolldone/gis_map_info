@@ -10,15 +10,34 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type AsynqJobController struct{}
+type AsynqJobController struct {
+	RequestProps *struct {
+		Uuids []string `json:"uuids,omitempty"`
+		Take  int      `json:"take,omitempty"`
+		Skip  int      `json:"skip,omitempty"`
+	}
+}
 
 func (c *AsynqJobController) GetsAsynqJob(ctx *gin.Context) {
+	props := c.RequestProps
+	err := ctx.ShouldBindJSON(&props)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"status":      "error",
+			"status_code": http.StatusBadRequest,
+			"return":      err.Error(),
+		})
+		return
+	}
 	asynqJobService := service.AsynqJobService{
 		DB: gorm_support.DB,
 	}
 	asyncJobDatas := []*model.AsyncJobView{}
 	asyncJobDB := asynqJobService.Gets()
-	err := asyncJobDB.Find(&asyncJobDatas).Error
+	if props.Uuids != nil {
+		asyncJobDB = asyncJobDB.Where("uuids IN ?", props.Uuids)
+	}
+	err = asyncJobDB.Find(&asyncJobDatas).Error
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
