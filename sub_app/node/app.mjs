@@ -51,7 +51,7 @@ const NATS_HOST_2 = process.env.NATS_HOST_2 + ":" + process.env.NATS_PORT
 const NATS_HOST_3 = process.env.NATS_HOST_3 + ":" + process.env.NATS_PORT
 
 const servers = [
-  { servers: [NATS_HOST, NATS_HOST_2, NATS_HOST_3] },
+  { servers: [NATS_HOST, /* NATS_HOST_2, NATS_HOST_3 */] },
 ];
 
 function getRandomNumber(min, max) {

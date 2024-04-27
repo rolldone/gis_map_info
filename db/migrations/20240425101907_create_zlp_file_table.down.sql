@@ -1,0 +1,1 @@
+DROP TABLE zlp_file

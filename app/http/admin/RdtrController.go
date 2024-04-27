@@ -750,8 +750,8 @@ func (a *RdtrController) HandleWS(ctx *gin.Context) {
 			if asynq_ids[asynq_id].Is_run {
 				go func(conn *websocket.Conn, ass *aty2type) {
 					for ass.Is_run {
-						tailLog(conn, asynq_id, ass)
 						time.Sleep(2 * time.Second)
+						tailLog(conn, asynq_id, ass)
 					}
 				}(conn, asynq_ids[asynq_id])
 			}
@@ -773,8 +773,8 @@ func checkAsynqStatusClosure(conn *websocket.Conn, uuids []string) func() bool {
 			textT["from"] = "check_asynq_status"
 			textT["message"] = asynq_datas
 			textTSTrng, _ := json.Marshal(textT)
+			time.Sleep(3 * time.Second)
 			conn.WriteMessage(websocket.TextMessage, textTSTrng)
-			time.Sleep(5 * time.Second)
 		}
 		fmt.Println("checkAsynqStatusClosure - stop")
 	}(uuids, &is_loop)
@@ -799,8 +799,8 @@ func checkStatusRdtrGroupClousure(conn *websocket.Conn, ids []int64) func() bool
 			textT["from"] = "check_group"
 			textT["message"] = rdtr_group_datas
 			textTSTrng, _ := json.Marshal(textT)
-			conn.WriteMessage(websocket.TextMessage, textTSTrng)
 			time.Sleep(5 * time.Second)
+			conn.WriteMessage(websocket.TextMessage, textTSTrng)
 		}
 		fmt.Println("checkStatusRdtrGroupClousure - stop")
 	}(ids, &is_loop)

@@ -1,0 +1,2 @@
+ALTER TABLE zlp_file
+ADD COLUMN validated_at TIMESTAMP NULL;

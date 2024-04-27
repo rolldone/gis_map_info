@@ -58,6 +58,7 @@ func (c *RdtrService) Add(props rdtrServiceAddType) (Model.RdtrType, error) {
 	rdtrModel.RegRegency_id = props.RegRegency_id
 	rdtrModel.RegDistrict_id = props.RegDistrict_id
 	rdtrModel.RegVillage_id = props.RegVillage_id
+	rdtrModel.Place_string = props.Place_string
 	rdtrModel.Status = props.Status
 	err := c.DB.Create(&rdtrModel).Error
 	if err != nil {

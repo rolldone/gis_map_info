@@ -1,8 +1,8 @@
-CREATE TABLE rtrw_file (
+CREATE TABLE zlp_file (
     id BIGSERIAL PRIMARY KEY,
     uuid VARCHAR(36) UNIQUE NULL,
-    rtrw_group_id BIGINT,
-    rtrw_id BIGINT,
+    zlp_group_id BIGINT,
+    zlp_id BIGINT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

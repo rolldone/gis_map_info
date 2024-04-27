@@ -1,0 +1,2 @@
+ALTER TABLE zlp_mbtile
+ADD COLUMN asset_key VARCHAR(255) NULL;

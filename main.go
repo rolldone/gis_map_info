@@ -62,6 +62,9 @@ func main() {
 	client := asynq_support.Init()
 	defer client.Close()
 
+	// Define Job Manager
+	// jobm_support.InitJobManager()
+
 	// Define redis client
 	redisClient := redis_support.ConnectRedis()
 	defer redisClient.Close()
@@ -111,18 +114,46 @@ func main() {
 			admin.GET("/rdtr_mbtile/martin_config", rdtrMbtileController.GetMartinConfig)
 
 			rtrwController := &AdminController.RtrwController{}
-			admin.GET("/zone_rtrw/rtrws", rtrwController.GetRtrws)
-			admin.GET("/zone_rtrw/:uuid/view", rtrwController.GetRtrwByUUId)
+			admin.GET("/zone_rtrw/get/:id/view", rtrwController.GetRtrwById)
+			admin.GET("/zone_rtrw/gets/paginate", rtrwController.GetRtrwsPaginate)
+			admin.GET("/zone_rtrw/gets", rtrwController.GetRtrws)
 			admin.POST("/zone_rtrw/add", rtrwController.AddRtrw)
 			admin.POST("/zone_rtrw/update", rtrwController.UpdateRtrw)
 			admin.POST("/zone_rtrw/delete", rtrwController.DeleteRtrw)
+			admin.POST("/zone_rtrw/validate_kml", rtrwController.ValidateKml)
+			admin.POST("/zone_rtrw/validate_mbtile", rtrwController.ValidateMbtile)
+			admin.GET("/zone_rtrw/validate/ws", rtrwController.HandleWS)
 
-			zlpController := &AdminController.ZLPController{}
-			admin.GET("/zone_land_price/zlps", zlpController.GetZLPs)
-			admin.GET("/zone_land_price/:uuid/view", zlpController.GetZLPByUUId)
-			admin.POST("/zone_land_price/new", zlpController.AddZLP)
-			admin.POST("/zone_land_price/update", zlpController.UpdateZLP)
-			admin.POST("/zone_land_price/delete", zlpController.DeleteZLP)
+			rtrwFileController := &AdminController.RtrwFileController{}
+			admin.POST("/rtrw_file/add", rtrwFileController.Add)
+			admin.GET("/rtrw_file/get/:uuid", rtrwFileController.GetByUUID)
+			admin.Static("/rtrw_file/assets", "./storage/rtrw_files")
+
+			rtrwMbtileController := &AdminController.RtrwMbtileController{}
+			admin.POST("/rtrw_mbtile/add", rtrwMbtileController.Add)
+			admin.GET("/rtrw_mbtile/get/:uuid", rtrwMbtileController.GetbyUUID)
+			admin.GET("/rtrw_mbtile/martin_config", rtrwMbtileController.GetMartinConfig)
+
+			zlpController := &AdminController.ZlpController{}
+			admin.GET("/zone_zlp/get/:id/view", zlpController.GetZlpById)
+			admin.GET("/zone_zlp/gets/paginate", zlpController.GetZlpsPaginate)
+			admin.GET("/zone_zlp/gets", zlpController.GetZlps)
+			admin.POST("/zone_zlp/add", zlpController.AddZlp)
+			admin.POST("/zone_zlp/update", zlpController.UpdateZlp)
+			admin.POST("/zone_zlp/delete", zlpController.DeleteZlp)
+			admin.POST("/zone_zlp/validate_kml", zlpController.ValidateKml)
+			admin.POST("/zone_zlp/validate_mbtile", zlpController.ValidateMbtile)
+			admin.GET("/zone_zlp/validate/ws", zlpController.HandleWS)
+
+			zlpFileController := &AdminController.ZlpFileController{}
+			admin.POST("/zlp_file/add", zlpFileController.Add)
+			admin.GET("/zlp_file/get/:uuid", zlpFileController.GetByUUID)
+			admin.Static("/zlp_file/assets", "./storage/zlp_files")
+
+			zlpMbtileController := &AdminController.ZlpMbtileController{}
+			admin.POST("/zlp_mbtile/add", zlpMbtileController.Add)
+			admin.GET("/zlp_mbtile/get/:uuid", zlpMbtileController.GetbyUUID)
+			admin.GET("/zlp_mbtile/martin_config", zlpMbtileController.GetMartinConfig)
 
 			regLocationController := &AdminController.RegLocationController{}
 			admin.GET("/reg_location/province/provinces", regLocationController.GetProvinces)
@@ -134,6 +165,10 @@ func main() {
 			admin.GET("/asynq_job/asynq_jobs", asynqJobController.GetsAsynqJob)
 			admin.GET("/asynq_job/:uuid/app_uuid", asynqJobController.GetAsynqJobByAppUuid)
 			admin.POST("/asynq_job/delete", asynqJobController.DeleteAsynqJobByUUIDS)
+
+			// Front Job log Controller
+			frontJobLogController := AdminController.MessageLogControllerConstruct()
+			admin.POST("/message_log/message_logs", frontJobLogController.Gets)
 
 		}
 
@@ -148,6 +183,16 @@ func main() {
 		frontRtrwController := FrontController.RtrwController()
 		api.GET("rtrw/rtrws", frontRtrwController.Gets)
 		api.GET("rtrw/:id/view", frontRtrwController.GetByUUID)
+		api.GET("rtrw/position/:latlng", frontRtrwController.GetByPosition)
+		api.GET("rtrw/regencies/:province_id", frontRtrwController.GetRegenciesByProvinceId)
+
+		frontZlpController := FrontController.ZlpController()
+		api.GET("zlp/zlps", frontZlpController.Gets)
+		api.GET("zlp/:id/view", frontZlpController.GetByUUID)
+		api.GET("zlp/position/:latlng", frontZlpController.GetByPosition)
+		api.GET("zlp/regencies/:province_id", frontZlpController.GetRegenciesByProvinceId)
+		api.GET("zlp_group/zlp_groups", frontZlpController.GetsByZlpGroup)
+		api.GET("zlp_group/position/:latlng", frontZlpController.GetPositionByZlpGroup)
 
 		locationController := FrontController.LocationController{}
 		api.GET("location/provinces/exists", locationController.GetsProvinceDistincExist)

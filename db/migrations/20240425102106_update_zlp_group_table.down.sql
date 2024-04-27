@@ -1,0 +1,6 @@
+ALTER TABLE zlp_group
+ADD COLUMN cat_key VARCHAR(255) NULL;
+ALTER TABLE zlp_group
+DROP COLUMN asset_key;
+ALTER TABLE zlp_group
+DROP COLUMN uuid;
