@@ -28,7 +28,7 @@ func ZlpController() ZlpControllerType {
 		DB: gorm_support.DB,
 	}
 	getZlps := func(ctx *gin.Context) {
-		reg_province_id := ctx.DefaultQuery("reg_province_id", "")
+		reg_province_id := ctx.DefaultQuery("reg_province_id", "51")
 		zlp_datas := []model.ZlpType{}
 		zlpDAtaDb := ZlpService.Gets()
 		fmt.Println("reg_province_id:: ", reg_province_id)
@@ -95,14 +95,14 @@ func ZlpController() ZlpControllerType {
 		ctx.JSON(200, gin.H{"message": "getZlpByUUID endpoint"})
 	}
 
-	GetsByZlpGroup := func(ctx *gin.Context) {
-		reg_province_id := ctx.DefaultQuery("reg_province_id", "")
+	getsByZlpGroup := func(ctx *gin.Context) {
+		reg_province_id := ctx.DefaultQuery("reg_province_id", "51")
 		zlp_group_datas := []model.ZlpGroupDistinctAssetView{}
 		zlpService := service.ZlpService{
 			DB: gorm_support.DB,
 		}
 		zlpGroupDB := zlpService.GetZlpGroups()
-		//
+		fmt.Println("reg_province_id:: ", reg_province_id)
 		zlpGroupDB.Preload("Mbtiles", "zlp_id IS NOT NULL").Joins("left join zlp_mbtile i on zlp_group.asset_key = i.asset_key").
 			Where("i.reg_province_id = ?", reg_province_id)
 		err := zlpGroupDB.Distinct("zlp_group.asset_key", "zlp_group.name").Find(&zlp_group_datas).Error
@@ -160,7 +160,7 @@ func ZlpController() ZlpControllerType {
 		GetByUUID:                getZlpByUUID,
 		GetByPosition:            getByPosition,
 		GetRegenciesByProvinceId: getRegenciesByPronvinceId,
-		GetsByZlpGroup:           GetsByZlpGroup,
+		GetsByZlpGroup:           getsByZlpGroup,
 		GetPositionByZlpGroup:    GetPositionByZlpGroup,
 	}
 }

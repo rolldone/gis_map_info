@@ -6,6 +6,7 @@ import (
 	"gis_map_info/app/service"
 	"gis_map_info/support/gorm_support"
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -26,9 +27,22 @@ func RtrwController() RtrwControllerType {
 		DB: gorm_support.DB,
 	}
 	getRtrws := func(ctx *gin.Context) {
-		reg_province_id := ctx.DefaultQuery("reg_province_id", "")
+		reg_province_id := ctx.DefaultQuery("reg_province_id", "51")
+		latitude := ctx.DefaultQuery("lat", "")
+		longitude := ctx.DefaultQuery("lng", "")
 		rtrw_datas := []model.RtrwType{}
 		rtrwDAtaDb := RtrwService.Gets()
+		if reg_province_id == "" {
+			_reg_province_id, err := GetNearProvinceByPosition(latitude, longitude)
+			if err != nil {
+				ctx.JSON(400, gin.H{
+					"status":      "error",
+					"status_code": 400,
+					"return":      err.Error(),
+				})
+			}
+			reg_province_id = strconv.Itoa(int(*_reg_province_id))
+		}
 		fmt.Println("reg_province_id:: ", reg_province_id)
 		err := rtrwDAtaDb.
 			Preload("Reg_province").
