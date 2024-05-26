@@ -16,6 +16,9 @@ type ZlpMbtile struct {
 	CreatedAt       time.Time  `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt       time.Time  `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
 	CheckedAt       *time.Time `gorm:"column:checked_at;type:timestamp;default:CURRENT_TIMESTAMP" json:"checked_at,omitempty"`
+
+	// Relation
+	// Zlp *ZlpType `gorm:"<-:false;foreignKey:zlp_id;References:id" json:"zlp,omitempty"`
 }
 
 // Set the table name for the User model

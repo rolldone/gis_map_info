@@ -18,6 +18,9 @@ type ZlpGroup struct {
 	UpdatedAt  time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
 	Datas      []ZlpFile      `gorm:"foreignKey:zlp_group_id" json:"datas"`
 	Mbtiles    []ZlpMbtile    `gorm:"foreignKey:zlp_group_id;References:id" json:"mbtiles"`
+
+	// Relation
+	Zlp *ZlpType `gorm:"<-:false;foreignKey:zlp_id;References:id" json:"zlp,omitempty"`
 }
 
 type ZlpGroupView struct {
