@@ -103,8 +103,10 @@ func (a *ZlpController) GetZlpById(ctx *gin.Context) {
 		Preload("Reg_province").
 		Preload("Reg_district").
 		Preload("Zlp_groups", func(db *gorm.DB) *gorm.DB {
-			return db.Select("zlp_group.*, COALESCE((SELECT COUNT(*) FROM zlp_file  WHERE zlp_file.zlp_group_id = zlp_group.id AND zlp_file.validated_at IS NULL),0) AS unvalidated, " +
-				"COALESCE((SELECT COUNT(*) FROM zlp_file WHERE zlp_file.zlp_group_id = zlp_group.id AND zlp_file.validated_at IS NOT NULL),0) as validated")
+			return db.Preload("Datas", func(db *gorm.DB) *gorm.DB {
+				return db.Where("zlp_id IS NOT NULL")
+			}).Select("zlp_group.*, COALESCE((SELECT COUNT(*) FROM zlp_file  WHERE zlp_file.zlp_group_id = zlp_group.id AND zlp_file.validated_at IS NULL AND zlp_file.zlp_id IS NOT NULL),0) AS unvalidated, " +
+				"COALESCE((SELECT COUNT(*) FROM zlp_file WHERE zlp_file.zlp_group_id = zlp_group.id AND zlp_file.validated_at IS NOT NULL AND zlp_file.zlp_id IS NOT NULL),0) as validated")
 		}).
 		Preload("Zlp_mbtiles").
 		Preload("Zlp_groups.Datas").First(&zlpData).Error; err != nil {
@@ -777,8 +779,8 @@ func checkStatusZlpGroups(ids []int64) ([]Model.ZlpGroupView, error) {
 	zlp_group_datas := []Model.ZlpGroupView{}
 	err := zlp_groupModel.Preload("Datas").
 		Select("zlp_group.*, " +
-			"COALESCE((SELECT COUNT(*) FROM zlp_file  WHERE zlp_file.zlp_group_id = zlp_group.id AND zlp_file.validated_at IS NULL),0) AS unvalidated, " +
-			"COALESCE((SELECT COUNT(*) FROM zlp_file WHERE zlp_file.zlp_group_id = zlp_group.id AND zlp_file.validated_at IS NOT NULL),0) as validated").
+			"COALESCE((SELECT COUNT(*) FROM zlp_file  WHERE zlp_file.zlp_group_id = zlp_group.id AND zlp_file.validated_at IS NULL AND zlp_file.zlp_id != 0),0) AS unvalidated, " +
+			"COALESCE((SELECT COUNT(*) FROM zlp_file WHERE zlp_file.zlp_group_id = zlp_group.id AND zlp_file.validated_at IS NOT NULL AND zlp_file.zlp_id != 0),0) as validated").
 		Where([]int64(ids)).Find(&zlp_group_datas).Error
 	if err != nil {
 		return []Model.ZlpGroupView{}, err
