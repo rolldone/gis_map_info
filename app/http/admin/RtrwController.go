@@ -8,6 +8,7 @@ import (
 	Helper "gis_map_info/app/helper"
 	"gis_map_info/app/model"
 	Model "gis_map_info/app/model"
+	"gis_map_info/app/service"
 	Service "gis_map_info/app/service"
 	"gis_map_info/support/asynq_support"
 	"gis_map_info/support/gorm_support"
@@ -332,9 +333,22 @@ func (a *RtrwController) UpdateRtrw(ctx *gin.Context) {
 		})
 		return
 	}
+
 	rtrwFileService := Service.RtrwFileService{
 		DB: tx,
 	}
+	err = rtrwFileService.Gets(map[string]interface{}{}).Where("rtrw_id = ?", rtrwData.Id).Update("rtrw_id", nil).Error
+	if err != nil {
+		tx.Rollback()
+		fmt.Println("Error - 29915223489:", err)
+		ctx.JSON(500, gin.H{
+			"status":      "error",
+			"status_code": 500,
+			"return":      err.Error(),
+		})
+		return
+	}
+
 	rtrwGroups := props.Rtrw_groups
 	RtrwService.DeleteGroupByRtrwId(int(rtrwData.Id))
 	for i := 0; i < len(rtrwGroups); i++ {
@@ -402,8 +416,13 @@ func (a *RtrwController) UpdateRtrw(ctx *gin.Context) {
 		intMbtileId := int(rtrwMbtileItem["id"].(float64))
 		rtrw_mbtile_ids = append(rtrw_mbtile_ids, intMbtileId)
 	}
+
+	// Load RtrwMbtileService
+	rtrwMbtileService := service.RtrwMbtileService{
+		DB: tx,
+	}
 	// Delete rtrw mbtile by rtrw_id first
-	err = RtrwService.DeleteMbtileExceptRtrwMbtileIds_withRtrw_id(rtrw_mbtile_ids, int(rtrwData.Id))
+	err = rtrwMbtileService.Gets().Where("rtrw_id = ?", int(rtrwData.Id)).Update("rtrw_id", nil).Error
 	if err != nil {
 		tx.Rollback()
 		fmt.Println("Error:", err)
@@ -414,6 +433,7 @@ func (a *RtrwController) UpdateRtrw(ctx *gin.Context) {
 		})
 		return
 	}
+
 	for i := 0; i < len(rtrwMbtiles); i++ {
 		rtrwMbtileItem, _ := rtrwMbtiles[i].(map[string]interface{})
 		rtrwMbtileItem["rtrw_id"] = rtrwData.Id
@@ -513,8 +533,12 @@ func (a *RtrwController) ValidateMbtile(ctx *gin.Context) {
 		return
 	}
 
+	martin_mbtile_sources := map[string]interface{}{}
 	martin_mbtiles := martinMap["mbtiles"].(map[string]interface{})
-	martin_mbtile_sources := martin_mbtiles["sources"].(map[string]interface{})
+	martin_mbtile_sources_parse, ok := martin_mbtiles["sources"].(map[string]interface{})
+	if ok {
+		martin_mbtile_sources = martin_mbtile_sources_parse
+	}
 
 	var mbtile_datas = []model.RtrwMbtile{}
 

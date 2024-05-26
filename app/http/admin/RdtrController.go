@@ -9,6 +9,7 @@ import (
 	Helper "gis_map_info/app/helper"
 	"gis_map_info/app/model"
 	Model "gis_map_info/app/model"
+	"gis_map_info/app/service"
 	Service "gis_map_info/app/service"
 	"gis_map_info/support/asynq_support"
 	"gis_map_info/support/gorm_support"
@@ -276,7 +277,7 @@ func (a *RdtrController) UpdateRdtr(ctx *gin.Context) {
 		Name            string                   `json:"name" validate:"required"`
 		Place_string    string                   `json:"place_string" validate:"required"`
 		Reg_Province_id int64                    `json:"reg_province_id" validate:"required"`
-		Reg_Regency_id  int64                    `json:"reg_regency_id" validate:"required"`
+		Reg_Regency_id  int64                    `json:"reg_regency_id"`
 		Reg_District_id int64                    `json:"reg_district_id"`
 		Reg_Village_id  int64                    `json:"reg_village_id"`
 		Status          string                   `json:"status" validate:"required"`
@@ -335,6 +336,17 @@ func (a *RdtrController) UpdateRdtr(ctx *gin.Context) {
 	}
 	rdtrFileService := Service.RdtrFileService{
 		DB: tx,
+	}
+	err = rdtrFileService.Gets(map[string]interface{}{}).Where("rdtr_id = ?", rdtrData.Id).Update("rdtr_id", nil).Error
+	if err != nil {
+		tx.Rollback()
+		fmt.Println("Error - 29945923489:", err)
+		ctx.JSON(500, gin.H{
+			"status":      "error",
+			"status_code": 500,
+			"return":      err.Error(),
+		})
+		return
 	}
 	rdtrGroups := props.Rdtr_groups
 	RdtrService.DeleteGroupByRdtrId(int(rdtrData.Id))
@@ -403,8 +415,13 @@ func (a *RdtrController) UpdateRdtr(ctx *gin.Context) {
 		intMbtileId := int(rdtrMbtileItem["id"].(float64))
 		rdtr_mbtile_ids = append(rdtr_mbtile_ids, intMbtileId)
 	}
+
+	// Load RdtrMbtileService
+	rdtrMbtileService := service.RdtrMbtileService{
+		DB: tx,
+	}
 	// Delete rdtr mbtile by rdtr_id first
-	err = RdtrService.DeleteMbtileExceptRdtrMbtileIds_withRdtr_id(rdtr_mbtile_ids, int(rdtrData.Id))
+	err = rdtrMbtileService.Gets().Where("rdtr_id = ?", int(rdtrData.Id)).Update("rdtr_id", nil).Error
 	if err != nil {
 		tx.Rollback()
 		fmt.Println("Error:", err)
@@ -415,6 +432,7 @@ func (a *RdtrController) UpdateRdtr(ctx *gin.Context) {
 		})
 		return
 	}
+
 	for i := 0; i < len(rdtrMbtiles); i++ {
 		rdtrMbtileItem, _ := rdtrMbtiles[i].(map[string]interface{})
 		rdtrMbtileItem["rdtr_id"] = rdtrData.Id
@@ -514,8 +532,12 @@ func (a *RdtrController) ValidateMbtile(ctx *gin.Context) {
 		return
 	}
 
+	martin_mbtile_sources := map[string]interface{}{}
 	martin_mbtiles := martinMap["mbtiles"].(map[string]interface{})
-	martin_mbtile_sources := martin_mbtiles["sources"].(map[string]interface{})
+	martin_mbtile_sources_parse, ok := martin_mbtiles["sources"].(map[string]interface{})
+	if ok {
+		martin_mbtile_sources = martin_mbtile_sources_parse
+	}
 
 	var mbtile_datas = []model.RdtrMbtile{}
 

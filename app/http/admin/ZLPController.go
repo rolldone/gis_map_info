@@ -8,6 +8,7 @@ import (
 	Helper "gis_map_info/app/helper"
 	"gis_map_info/app/model"
 	Model "gis_map_info/app/model"
+	"gis_map_info/app/service"
 	Service "gis_map_info/app/service"
 	"gis_map_info/support/asynq_support"
 	"gis_map_info/support/gorm_support"
@@ -337,6 +338,18 @@ func (a *ZlpController) UpdateZlp(ctx *gin.Context) {
 	zlpFileService := Service.ZlpFileService{
 		DB: tx,
 	}
+	err = zlpFileService.Gets(map[string]interface{}{}).Where("zlp_id = ?", zlpData.Id).Update("zlp_id", nil).Error
+	if err != nil {
+		tx.Rollback()
+		fmt.Println("Error - 29948623489:", err)
+		ctx.JSON(500, gin.H{
+			"status":      "error",
+			"status_code": 500,
+			"return":      err.Error(),
+		})
+		return
+	}
+
 	zlpGroups := props.Zlp_groups
 	ZlpService.DeleteGroupByZlpId(int(zlpData.Id))
 	for i := 0; i < len(zlpGroups); i++ {
@@ -404,8 +417,13 @@ func (a *ZlpController) UpdateZlp(ctx *gin.Context) {
 		intMbtileId := int(zlpMbtileItem["id"].(float64))
 		zlp_mbtile_ids = append(zlp_mbtile_ids, intMbtileId)
 	}
+
+	// Load ZlpMbtileService
+	zlpMbtileService := service.ZlpMbtileService{
+		DB: tx,
+	}
 	// Delete zlp mbtile by zlp_id first
-	err = ZlpService.DeleteMbtileExceptZlpMbtileIds_withZlp_id(zlp_mbtile_ids, int(zlpData.Id))
+	err = zlpMbtileService.Gets().Where("zlp_id = ?", int(zlpData.Id)).Update("zlp_id", nil).Error
 	if err != nil {
 		tx.Rollback()
 		fmt.Println("Error:", err)
@@ -416,6 +434,7 @@ func (a *ZlpController) UpdateZlp(ctx *gin.Context) {
 		})
 		return
 	}
+
 	for i := 0; i < len(zlpMbtiles); i++ {
 		zlpMbtileItem, _ := zlpMbtiles[i].(map[string]interface{})
 		zlpMbtileItem["zlp_id"] = zlpData.Id
@@ -513,9 +532,12 @@ func (a *ZlpController) ValidateMbtile(ctx *gin.Context) {
 		return
 	}
 
+	martin_mbtile_sources := map[string]interface{}{}
 	martin_mbtiles := martinMap["mbtiles"].(map[string]interface{})
-	martin_mbtile_sources := martin_mbtiles["sources"].(map[string]interface{})
-
+	martin_mbtile_sources_parse, ok := martin_mbtiles["sources"].(map[string]interface{})
+	if ok {
+		martin_mbtile_sources = martin_mbtile_sources_parse
+	}
 	var mbtile_datas = []model.ZlpMbtile{}
 
 	// First get uncheck data first

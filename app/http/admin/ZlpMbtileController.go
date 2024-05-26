@@ -3,6 +3,7 @@ package admin
 import (
 	"fmt"
 	Service "gis_map_info/app/service"
+	"gis_map_info/support/app_support"
 	"gis_map_info/support/gorm_support"
 	"mime/multipart"
 	"os"
@@ -78,7 +79,7 @@ func (c *ZlpMbtileController) Add(ctx *gin.Context) {
 	}
 
 	// Create directory if it doesn't exist
-	uploadDir := "./sub_app/martin/mbtiles/zlp"
+	uploadDir := app_support.App.Mbtile_zlp_path
 	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
 		err := os.MkdirAll(uploadDir, 0755)
 		if err != nil {

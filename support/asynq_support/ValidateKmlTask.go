@@ -327,7 +327,7 @@ func HandleValidateKmlTask(ctx context.Context, t *asynq.Task) error {
 
 		zlpFileDB := fileService.Gets(nil)
 		zlpFIleDatas := []model.ZlpFile{}
-		err = zlpFileDB.Preload("Zlp_group").Preload("Zlp").Where("zlp_group_id = ? ", p.Table_group_id).Find(&zlpFIleDatas).Error
+		err = zlpFileDB.Preload("Zlp_group").Preload("Zlp").Where("zlp_id != 0").Where("zlp_group_id = ? ", p.Table_group_id).Find(&zlpFIleDatas).Error
 		if err != nil {
 			fmt.Println("Validate zlp :: ", err.Error())
 		}

@@ -51,10 +51,6 @@ func (c *RdtrFileService) Update(props random_o29mamivm289) (Model.RdtrFile, err
 	return rdtrFile, nil
 }
 
-func (c *RdtrFileService) DeleteById(id int) bool {
-	return true
-}
-
 func (c *RdtrFileService) Gets(props interface{}) *gorm.DB {
 	rdtrFiles := Model.RdtrFile{}
 	return c.DB.Model(&rdtrFiles)
