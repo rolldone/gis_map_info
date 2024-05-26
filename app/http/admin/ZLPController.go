@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/asaskevich/EventBus"
 	"github.com/benpate/convert"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -664,6 +665,13 @@ func (a *ZlpController) HandleWS(ctx *gin.Context) {
 		return
 	}
 
+	bus := EventBus.New()
+
+	eventBusKey := helper.RandStringBytes(10)
+	bus.Subscribe(eventBusKey, func(message []byte) {
+		conn.WriteMessage(websocket.TextMessage, message)
+	})
+
 	var checkStatusAsynqClose func() bool
 	var checkStatusZlpGroupClose func() bool
 
@@ -707,7 +715,7 @@ func (a *ZlpController) HandleWS(ctx *gin.Context) {
 				}
 				// Create a new slice of string
 				stringSlice := convert.SliceOfString(jj)
-				checkStatusAsynqClose = checkAsynqStatusClosure(conn, stringSlice)
+				checkStatusAsynqClose = checkAsynqStatusClosure(bus, eventBusKey, stringSlice)
 			}
 		case "CHECK_VALIDATED":
 			if checkStatusZlpGroupClose == nil {
@@ -719,7 +727,7 @@ func (a *ZlpController) HandleWS(ctx *gin.Context) {
 
 				// Create a new slice of int64
 				int64Slice := helper.SliceOfInt64(jj)
-				checkStatusZlpGroupClose = checkStatusZlpGroupClousure(conn, int64Slice)
+				checkStatusZlpGroupClose = checkStatusZlpGroupClousure(bus, eventBusKey, int64Slice)
 			}
 
 		case "TAIL":
@@ -734,34 +742,34 @@ func (a *ZlpController) HandleWS(ctx *gin.Context) {
 				asynq_ids[asynq_id].Is_run = !asynq_ids[asynq_id].Is_run
 			}
 			if asynq_ids[asynq_id].Is_run {
-				go func(conn *websocket.Conn, ass *aty2type) {
+				go func(bus EventBus.Bus, eventBusKey string, ass *aty2type) {
 					for ass.Is_run {
 						time.Sleep(2 * time.Second)
-						tailLog(conn, asynq_id, ass)
+						tailLog(bus, eventBusKey, asynq_id, ass)
 					}
-				}(conn, asynq_ids[asynq_id])
+				}(bus, eventBusKey, asynq_ids[asynq_id])
 			}
 		}
 	}
 }
 
-func checkStatusZlpGroupClousure(conn *websocket.Conn, ids []int64) func() bool {
+func checkStatusZlpGroupClousure(bus EventBus.Bus, eventBusKey string, ids []int64) func() bool {
 	is_loop := true
 	go func(ids []int64, s *bool) {
 		for *s {
 			var group_ids []int64 = ids
 			zlp_group_datas, err := checkStatusZlpGroups(group_ids)
 			if err != nil {
-				conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+				bus.Publish(eventBusKey, []byte(err.Error()))
 				return
 			}
+			time.Sleep(5 * time.Second)
 			fmt.Println("checkStatusZlpGroupClousure - running")
 			textT := map[string]interface{}{}
 			textT["from"] = "check_group"
 			textT["message"] = zlp_group_datas
 			textTSTrng, _ := json.Marshal(textT)
-			time.Sleep(5 * time.Second)
-			conn.WriteMessage(websocket.TextMessage, textTSTrng)
+			bus.Publish(eventBusKey, textTSTrng)
 		}
 		fmt.Println("checkStatusZlpGroupClousure - stop")
 	}(ids, &is_loop)

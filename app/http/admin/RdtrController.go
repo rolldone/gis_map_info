@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/asaskevich/EventBus"
 	"github.com/benpate/convert"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -678,6 +679,13 @@ func (a *RdtrController) HandleWS(ctx *gin.Context) {
 		return
 	}
 
+	bus := EventBus.New()
+
+	eventBusKey := helper.RandStringBytes(10)
+	bus.Subscribe(eventBusKey, func(message []byte) {
+		conn.WriteMessage(websocket.TextMessage, message)
+	})
+
 	var checkStatusAsynqClose func() bool
 	var checkStatusRdtrGroupClose func() bool
 
@@ -721,7 +729,7 @@ func (a *RdtrController) HandleWS(ctx *gin.Context) {
 				}
 				// Create a new slice of string
 				stringSlice := convert.SliceOfString(jj)
-				checkStatusAsynqClose = checkAsynqStatusClosure(conn, stringSlice)
+				checkStatusAsynqClose = checkAsynqStatusClosure(bus, eventBusKey, stringSlice)
 			}
 		case "CHECK_VALIDATED":
 			if checkStatusRdtrGroupClose == nil {
@@ -733,7 +741,7 @@ func (a *RdtrController) HandleWS(ctx *gin.Context) {
 
 				// Create a new slice of int64
 				int64Slice := helper.SliceOfInt64(jj)
-				checkStatusRdtrGroupClose = checkStatusRdtrGroupClousure(conn, int64Slice)
+				checkStatusRdtrGroupClose = checkStatusRdtrGroupClousure(bus, eventBusKey, int64Slice)
 			}
 
 		case "TAIL":
@@ -748,18 +756,18 @@ func (a *RdtrController) HandleWS(ctx *gin.Context) {
 				asynq_ids[asynq_id].Is_run = !asynq_ids[asynq_id].Is_run
 			}
 			if asynq_ids[asynq_id].Is_run {
-				go func(conn *websocket.Conn, ass *aty2type) {
+				go func(bus EventBus.Bus, eventBusKey string, ass *aty2type) {
 					for ass.Is_run {
 						time.Sleep(2 * time.Second)
-						tailLog(conn, asynq_id, ass)
+						tailLog(bus, eventBusKey, asynq_id, ass)
 					}
-				}(conn, asynq_ids[asynq_id])
+				}(bus, eventBusKey, asynq_ids[asynq_id])
 			}
 		}
 	}
 }
 
-func checkAsynqStatusClosure(conn *websocket.Conn, uuids []string) func() bool {
+func checkAsynqStatusClosure(bus EventBus.Bus, eventBusKey string, uuids []string) func() bool {
 	is_loop := true
 	go func(uuids []string, s *bool) {
 		for *s {
@@ -774,7 +782,8 @@ func checkAsynqStatusClosure(conn *websocket.Conn, uuids []string) func() bool {
 			textT["message"] = asynq_datas
 			textTSTrng, _ := json.Marshal(textT)
 			time.Sleep(3 * time.Second)
-			conn.WriteMessage(websocket.TextMessage, textTSTrng)
+			bus.Publish(eventBusKey, textTSTrng)
+			// conn.WriteMessage(websocket.TextMessage, textTSTrng)
 		}
 		fmt.Println("checkAsynqStatusClosure - stop")
 	}(uuids, &is_loop)
@@ -784,23 +793,24 @@ func checkAsynqStatusClosure(conn *websocket.Conn, uuids []string) func() bool {
 	}
 }
 
-func checkStatusRdtrGroupClousure(conn *websocket.Conn, ids []int64) func() bool {
+func checkStatusRdtrGroupClousure(bus EventBus.Bus, eventBusKey string, ids []int64) func() bool {
 	is_loop := true
 	go func(ids []int64, s *bool) {
 		for *s {
 			var group_ids []int64 = ids
 			rdtr_group_datas, err := checkStatusRdtrGroups(group_ids)
 			if err != nil {
-				conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+				bus.Publish(eventBusKey, []byte(err.Error()))
 				return
 			}
+
+			time.Sleep(5 * time.Second)
 			fmt.Println("checkStatusRdtrGroupClousure - running")
 			textT := map[string]interface{}{}
 			textT["from"] = "check_group"
 			textT["message"] = rdtr_group_datas
 			textTSTrng, _ := json.Marshal(textT)
-			time.Sleep(5 * time.Second)
-			conn.WriteMessage(websocket.TextMessage, textTSTrng)
+			bus.Publish(eventBusKey, textTSTrng)
 		}
 		fmt.Println("checkStatusRdtrGroupClousure - stop")
 	}(ids, &is_loop)
@@ -810,7 +820,7 @@ func checkStatusRdtrGroupClousure(conn *websocket.Conn, ids []int64) func() bool
 	}
 }
 
-func tailLog(conn *websocket.Conn, asynq_id string, asyncItem *aty2type) {
+func tailLog(bus EventBus.Bus, eventBusKey string, asynq_id string, asyncItem *aty2type) {
 	ff, err := os.Open(fmt.Sprint("./storage/log/job/", asynq_id, ".log"))
 
 	if err != nil {
@@ -840,7 +850,7 @@ func tailLog(conn *websocket.Conn, asynq_id string, asyncItem *aty2type) {
 		textT["from"] = asynq_id
 		textT["message"] = kkNewScanner.Text()
 		textTSTrng, _ := json.Marshal(textT)
-		conn.WriteMessage(websocket.TextMessage, textTSTrng)
+		bus.Publish(eventBusKey, textTSTrng)
 	}
 
 	if kkNewScanner.Err() != nil {
