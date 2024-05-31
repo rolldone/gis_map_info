@@ -48,7 +48,8 @@ func RtrwController() RtrwControllerType {
 			Preload("Reg_province").
 			Preload("Reg_regency").
 			Preload("Reg_district").
-			Preload("Rtrw_mbtiles").Where("reg_province_id = ?", reg_province_id).Where("status = ?", "active").Find(&rtrw_datas).Error
+			Preload("Rtrw_mbtiles").Where("reg_province_id = ?", reg_province_id).Where("status = ?", "active").
+			Order("name ASC").Find(&rtrw_datas).Error
 		if err != nil {
 			if err != nil {
 				ctx.JSON(400, gin.H{

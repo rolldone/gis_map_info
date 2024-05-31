@@ -74,7 +74,9 @@ func RdtrController() RdtrControllerType {
 			Preload("Reg_province").
 			Preload("Reg_regency").
 			Preload("Reg_district").
-			Preload("Rdtr_mbtiles").Where("reg_province_id = ?", reg_province_id).Where("status = ?", "active").Find(&rdtr_datas).Error
+			Preload("Rdtr_mbtiles").Where("reg_province_id = ?", reg_province_id).Where("status = ?", "active").
+			Order("name ASC").
+			Find(&rdtr_datas).Error
 		if err != nil {
 			ctx.JSON(400, gin.H{
 				"status":      "error",

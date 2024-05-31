@@ -38,6 +38,10 @@ fi
 
 VOLUME_NAME="gis_map_info_node"
 HOST_DIR="$HOST_DIR/sub_app/node"
+
+# Create directory first
+mkdir -p $HOST_DIR || true
+
 # Check if the volume already exists
 if docker volume inspect "$VOLUME_NAME" >/dev/null 2>&1; then
   echo "Volume '$VOLUME_NAME' already exists. Skipping creation."
@@ -55,6 +59,10 @@ fi
 VOLUME_NAME="martin_config"
 HOST_DIR="$(pwd)"
 HOST_DIR="$HOST_DIR/sub_app/martin"
+
+# Create directory first
+mkdir -p $HOST_DIR || true
+
 # Check if the volume already exists
 if docker volume inspect "$VOLUME_NAME" >/dev/null 2>&1; then
   echo "Volume '$VOLUME_NAME' already exists. Skipping creation."
