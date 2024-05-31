@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"fmt"
-	"gis_map_info/app/http/admin"
 	"gis_map_info/app/model"
 	"gis_map_info/app/service"
 	"gis_map_info/support/gorm_support"
@@ -12,6 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
+
+var contextTopicAdmin = "admin_data"
 
 func AdminTokenMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -33,7 +34,8 @@ func AdminTokenMiddleware() gin.HandlerFunc {
 
 		tokenString := c.Request.Header["Authorization"][0]
 		tokenString = strings.Replace(tokenString, "Bearer ", "", -1)
-		jwtToken, err := admin.CheckJWTTOken(tokenString)
+		userService := service.UserServiceConstruct(gorm_support.DB)
+		jwtToken, err := userService.CheckJWTTOken(tokenString)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"status":      "error",
@@ -54,7 +56,7 @@ func AdminTokenMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		userService := service.UserServiceConstruct(gorm_support.DB)
+
 		userData := model.UserView{}
 		userDB := userService.Gets()
 		err = userDB.Where("uuid = ?", claims["uuid"]).First(&userData).Error
@@ -67,7 +69,7 @@ func AdminTokenMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		c.Set("admin_data", userData)
+		c.Set(contextTopicAdmin, userData)
 		c.Next()
 		// For testing enable this code
 		// c.JSON(http.StatusAccepted, gin.H{
@@ -77,4 +79,14 @@ func AdminTokenMiddleware() gin.HandlerFunc {
 		// })
 		// c.Done()
 	}
+}
+
+func GetAdminAccess(ctx *gin.Context) *model.UserView {
+	// Get personal data from token middleware
+	project_data, ok := ctx.Get(contextTopicAdmin)
+	if !ok {
+		return nil
+	}
+	personalData := project_data.(model.UserView)
+	return &personalData
 }

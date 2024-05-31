@@ -3,6 +3,7 @@ package admin
 import (
 	"fmt"
 	"gis_map_info/app/helper"
+	"gis_map_info/app/http/middleware"
 	"gis_map_info/app/model"
 	"gis_map_info/app/service"
 	"gis_map_info/support/gorm_support"
@@ -11,21 +12,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/redis/go-redis/v9"
 )
 
 type AuthController struct {
-}
-
-var APPLICATION_NAME = "My Simple JWT App"
-var LOGIN_EXPIRATION_DURATION = time.Duration(1) * time.Hour
-var JWT_SIGNING_METHOD = jwt.SigningMethodHS256
-var JWT_SIGNATURE_KEY = []byte("the secret of kalimdor")
-
-type MyClaims struct {
-	jwt.RegisteredClaims
-	Uuid string `json:"uuid"`
 }
 
 func (c *AuthController) Login(ctx *gin.Context) {
@@ -59,7 +49,7 @@ func (c *AuthController) Login(ctx *gin.Context) {
 	passwordEncrypte := userService.GeneratePassword(props.Password, userData.Salt)
 
 	if passwordEncrypte == userData.Passkey {
-		signedToken, err := GenerateToken(userData)
+		signedToken, err := userService.GenerateToken(userData)
 		if err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{
 				"status":      "error",
@@ -144,6 +134,7 @@ func (c *AuthController) Register(ctx *gin.Context) {
 }
 
 func (c *AuthController) UpdateProfile(ctx *gin.Context) {
+	userAccess := middleware.GetAdminAccess(ctx)
 	props := struct {
 		Uuid                  string  `json:"uuid"`
 		Name                  string  `json:"name"`
@@ -171,7 +162,7 @@ func (c *AuthController) UpdateProfile(ctx *gin.Context) {
 
 	userData := model.User{}
 	userdataDB := userService.Gets()
-	err = userdataDB.Where("uuid = ?", props.Uuid).First(&userData).Error
+	err = userdataDB.Where("uuid = ?", userAccess.Uuid).First(&userData).Error
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"status":      "error",
@@ -369,34 +360,4 @@ func (c *AuthController) Auth(ctx *gin.Context) {
 
 func (c *AuthController) Logout(ctx *gin.Context) {
 
-}
-
-func GenerateToken(userData model.User) (*string, error) {
-	now := time.Now()
-	claims := MyClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    APPLICATION_NAME,
-			ExpiresAt: &jwt.NumericDate{now.Add(time.Hour * 24)},
-		},
-		Uuid: userData.Uuid,
-	}
-	token := jwt.NewWithClaims(
-		JWT_SIGNING_METHOD,
-		claims,
-	)
-	signedToken, err := token.SignedString(JWT_SIGNATURE_KEY)
-	return &signedToken, err
-}
-
-func CheckJWTTOken(tokenString string) (*jwt.Token, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if method, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("signing method invalid")
-		} else if method != JWT_SIGNING_METHOD {
-			return nil, fmt.Errorf("signing method invalid")
-		}
-
-		return JWT_SIGNATURE_KEY, nil
-	})
-	return token, err
 }

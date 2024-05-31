@@ -114,7 +114,7 @@ func main() {
 			adminRoute.POST("/auth/forgot_password", adminAuthController.ForgotPassword)
 			adminRoute.POST("/auth/recovery_password", adminAuthController.RecoveryPassword)
 			adminRoute.GET("/auth/logout", adminTokenMiddleware, adminAuthController.Logout)
-			adminRoute.GET("/auth", adminTokenMiddleware, adminAuthController.Auth)
+			adminRoute.GET("/auth/profile", adminTokenMiddleware, adminAuthController.Auth)
 			adminRoute.POST("/auth/profile/update", adminTokenMiddleware, adminAuthController.UpdateProfile)
 
 			userController := admin.UserController{}
@@ -129,9 +129,9 @@ func main() {
 			adminRoute.GET("/dashboard/rtrw-periode", gin.HandlerFunc(dashboard.GetRtrwPeriode))
 
 			rdtrController := &AdminController.RdtrController{}
-			adminRoute.GET("/zone_rdtr/get/:id/view", rdtrController.GetRdtrById)
-			adminRoute.GET("/zone_rdtr/gets/paginate", rdtrController.GetRdtrsPaginate)
-			adminRoute.GET("/zone_rdtr/gets", rdtrController.GetRdtrs)
+			adminRoute.GET("/zone_rdtr/get/:id/view", adminTokenMiddleware, rdtrController.GetRdtrById)
+			adminRoute.GET("/zone_rdtr/gets/paginate", adminTokenMiddleware, rdtrController.GetRdtrsPaginate)
+			adminRoute.GET("/zone_rdtr/gets", adminTokenMiddleware, rdtrController.GetRdtrs)
 			adminRoute.POST("/zone_rdtr/add", rdtrController.AddRdtr)
 			adminRoute.POST("/zone_rdtr/update", rdtrController.UpdateRdtr)
 			adminRoute.POST("/zone_rdtr/delete", rdtrController.DeleteRdtr)
@@ -141,18 +141,18 @@ func main() {
 
 			rdtrFileController := &AdminController.RdtrFileController{}
 			adminRoute.POST("/rdtr_file/add", rdtrFileController.Add)
-			adminRoute.GET("/rdtr_file/get/:uuid", rdtrFileController.GetByUUID)
+			adminRoute.GET("/rdtr_file/get/:uuid", adminTokenMiddleware, rdtrFileController.GetByUUID)
 			adminRoute.Static("/rdtr_file/assets", "./storage/rdtr_files")
 
 			rdtrMbtileController := &AdminController.RdtrMbtileController{}
 			adminRoute.POST("/rdtr_mbtile/add", rdtrMbtileController.Add)
-			adminRoute.GET("/rdtr_mbtile/get/:uuid", rdtrMbtileController.GetbyUUID)
-			adminRoute.GET("/rdtr_mbtile/martin_config", rdtrMbtileController.GetMartinConfig)
+			adminRoute.GET("/rdtr_mbtile/get/:uuid", adminTokenMiddleware, rdtrMbtileController.GetbyUUID)
+			adminRoute.GET("/rdtr_mbtile/martin_config", adminTokenMiddleware, rdtrMbtileController.GetMartinConfig)
 
 			rtrwController := &AdminController.RtrwController{}
-			adminRoute.GET("/zone_rtrw/get/:id/view", rtrwController.GetRtrwById)
-			adminRoute.GET("/zone_rtrw/gets/paginate", rtrwController.GetRtrwsPaginate)
-			adminRoute.GET("/zone_rtrw/gets", rtrwController.GetRtrws)
+			adminRoute.GET("/zone_rtrw/get/:id/view", adminTokenMiddleware, rtrwController.GetRtrwById)
+			adminRoute.GET("/zone_rtrw/gets/paginate", adminTokenMiddleware, rtrwController.GetRtrwsPaginate)
+			adminRoute.GET("/zone_rtrw/gets", adminTokenMiddleware, rtrwController.GetRtrws)
 			adminRoute.POST("/zone_rtrw/add", rtrwController.AddRtrw)
 			adminRoute.POST("/zone_rtrw/update", rtrwController.UpdateRtrw)
 			adminRoute.POST("/zone_rtrw/delete", rtrwController.DeleteRtrw)
@@ -162,18 +162,18 @@ func main() {
 
 			rtrwFileController := &AdminController.RtrwFileController{}
 			adminRoute.POST("/rtrw_file/add", rtrwFileController.Add)
-			adminRoute.GET("/rtrw_file/get/:uuid", rtrwFileController.GetByUUID)
+			adminRoute.GET("/rtrw_file/get/:uuid", adminTokenMiddleware, rtrwFileController.GetByUUID)
 			adminRoute.Static("/rtrw_file/assets", "./storage/rtrw_files")
 
 			rtrwMbtileController := &AdminController.RtrwMbtileController{}
 			adminRoute.POST("/rtrw_mbtile/add", rtrwMbtileController.Add)
-			adminRoute.GET("/rtrw_mbtile/get/:uuid", rtrwMbtileController.GetbyUUID)
-			adminRoute.GET("/rtrw_mbtile/martin_config", rtrwMbtileController.GetMartinConfig)
+			adminRoute.GET("/rtrw_mbtile/get/:uuid", adminTokenMiddleware, rtrwMbtileController.GetbyUUID)
+			adminRoute.GET("/rtrw_mbtile/martin_config", adminTokenMiddleware, rtrwMbtileController.GetMartinConfig)
 
 			zlpController := &AdminController.ZlpController{}
-			adminRoute.GET("/zone_zlp/get/:id/view", zlpController.GetZlpById)
-			adminRoute.GET("/zone_zlp/gets/paginate", zlpController.GetZlpsPaginate)
-			adminRoute.GET("/zone_zlp/gets", zlpController.GetZlps)
+			adminRoute.GET("/zone_zlp/get/:id/view", adminTokenMiddleware, zlpController.GetZlpById)
+			adminRoute.GET("/zone_zlp/gets/paginate", adminTokenMiddleware, zlpController.GetZlpsPaginate)
+			adminRoute.GET("/zone_zlp/gets", adminTokenMiddleware, zlpController.GetZlps)
 			adminRoute.POST("/zone_zlp/add", zlpController.AddZlp)
 			adminRoute.POST("/zone_zlp/update", zlpController.UpdateZlp)
 			adminRoute.POST("/zone_zlp/delete", zlpController.DeleteZlp)
@@ -183,23 +183,23 @@ func main() {
 
 			zlpFileController := &AdminController.ZlpFileController{}
 			adminRoute.POST("/zlp_file/add", zlpFileController.Add)
-			adminRoute.GET("/zlp_file/get/:uuid", zlpFileController.GetByUUID)
+			adminRoute.GET("/zlp_file/get/:uuid", adminTokenMiddleware, zlpFileController.GetByUUID)
 			adminRoute.Static("/zlp_file/assets", "./storage/zlp_files")
 
 			zlpMbtileController := &AdminController.ZlpMbtileController{}
 			adminRoute.POST("/zlp_mbtile/add", zlpMbtileController.Add)
-			adminRoute.GET("/zlp_mbtile/get/:uuid", zlpMbtileController.GetbyUUID)
-			adminRoute.GET("/zlp_mbtile/martin_config", zlpMbtileController.GetMartinConfig)
+			adminRoute.GET("/zlp_mbtile/get/:uuid", adminTokenMiddleware, zlpMbtileController.GetbyUUID)
+			adminRoute.GET("/zlp_mbtile/martin_config", adminTokenMiddleware, zlpMbtileController.GetMartinConfig)
 
 			regLocationController := &AdminController.RegLocationController{}
-			adminRoute.GET("/reg_location/province/provinces", regLocationController.GetProvinces)
-			adminRoute.GET("/reg_location/regency/regencies", regLocationController.GetRegencies)
-			adminRoute.GET("/reg_location/district/districts", regLocationController.GetDistricts)
-			adminRoute.GET("/reg_location/village/villages", regLocationController.GetVillages)
+			adminRoute.GET("/reg_location/province/provinces", adminTokenMiddleware, regLocationController.GetProvinces)
+			adminRoute.GET("/reg_location/regency/regencies", adminTokenMiddleware, regLocationController.GetRegencies)
+			adminRoute.GET("/reg_location/district/districts", adminTokenMiddleware, regLocationController.GetDistricts)
+			adminRoute.GET("/reg_location/village/villages", adminTokenMiddleware, regLocationController.GetVillages)
 
 			asynqJobController := AdminController.AsynqJobController{}
-			adminRoute.GET("/asynq_job/asynq_jobs", asynqJobController.GetsAsynqJob)
-			adminRoute.GET("/asynq_job/:uuid/app_uuid", asynqJobController.GetAsynqJobByAppUuid)
+			adminRoute.GET("/asynq_job/asynq_jobs", adminTokenMiddleware, asynqJobController.GetsAsynqJob)
+			adminRoute.GET("/asynq_job/:uuid/app_uuid", adminTokenMiddleware, asynqJobController.GetAsynqJobByAppUuid)
 			adminRoute.POST("/asynq_job/delete", asynqJobController.DeleteAsynqJobByUUIDS)
 
 			// Front Job log Controller

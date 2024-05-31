@@ -7,10 +7,22 @@ import (
 	"fmt"
 	"gis_map_info/app/model"
 	"reflect"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
+
+var APPLICATION_NAME = "My Simple JWT App"
+var LOGIN_EXPIRATION_DURATION = time.Duration(1) * time.Hour
+var JWT_SIGNING_METHOD = jwt.SigningMethodHS256
+var JWT_SIGNATURE_KEY = []byte("the secret of kalimdor")
+
+type MyClaims struct {
+	jwt.RegisteredClaims
+	Uuid string `json:"uuid"`
+}
 
 func UserServiceConstruct(DB *gorm.DB) UserService {
 	gg := UserService{
@@ -76,7 +88,7 @@ func (c *UserService) Update(props UpdatePayload_UserService) (*model.User, erro
 		userModel.Passkey = c.GeneratePassword(*props.Password, userModel.Salt)
 	}
 	userModel.Status = props.Status
-	err = c.db.Model(&model.User{}).Save(&userModel).Error
+	err = c.db.Model(&model.User{}).Where("uuid = ?", props.Uuid).Save(&userModel).Error
 	if err != nil {
 		return nil, err
 	}
@@ -117,4 +129,34 @@ func (c *UserService) GeneratePassword(password string, salt string) string {
 	sha.Write([]byte(saltedText))
 	var encrypted = hex.EncodeToString(sha.Sum(nil))
 	return string(encrypted)
+}
+
+func (c *UserService) GenerateToken(userData model.User) (*string, error) {
+	now := time.Now()
+	claims := MyClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    APPLICATION_NAME,
+			ExpiresAt: &jwt.NumericDate{now.Add(time.Hour * 24)},
+		},
+		Uuid: userData.Uuid,
+	}
+	token := jwt.NewWithClaims(
+		JWT_SIGNING_METHOD,
+		claims,
+	)
+	signedToken, err := token.SignedString(JWT_SIGNATURE_KEY)
+	return &signedToken, err
+}
+
+func (c *UserService) CheckJWTTOken(tokenString string) (*jwt.Token, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if method, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("signing method invalid")
+		} else if method != JWT_SIGNING_METHOD {
+			return nil, fmt.Errorf("signing method invalid")
+		}
+
+		return JWT_SIGNATURE_KEY, nil
+	})
+	return token, err
 }
