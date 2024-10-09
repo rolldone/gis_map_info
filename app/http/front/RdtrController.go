@@ -118,7 +118,11 @@ func RdtrController() RdtrControllerType {
 
 		rdtrGeojson := []model.RdtrGeojsonView{}
 		rdtrGeoDb := RdtrGeojsonService.Gets()
-		err := rdtrGeoDb.Where("ST_Within(ST_SetSRID(ST_MakePoint(?, ?), 4326), geojson)", lng, lat).Where("rdtr_id IN ?", ids).Select("rdtr_geojson.*, ST_AsGeoJSON(geojson) as geojson").Find(&rdtrGeojson).Error
+		rdtrGeoDb = rdtrGeoDb.Where("ST_Within(ST_SetSRID(ST_MakePoint(?, ?), 4326), geojson)", lng, lat)
+		if len(ids) > 0 {
+			rdtrGeoDb = rdtrGeoDb.Where("rdtr_id IN ?", ids)
+		}
+		err := rdtrGeoDb.Select("rdtr_geojson.*, ST_AsGeoJSON(geojson) as geojson").Find(&rdtrGeojson).Error
 		if err != nil {
 			log.Println(err)
 			ctx.JSON(200, gin.H{

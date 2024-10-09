@@ -93,7 +93,11 @@ func RtrwController() RtrwControllerType {
 
 		rtrwGeojson := []model.RtrwGeojsonView{}
 		rtrwGeoDb := RtrwGeojsonService.Gets()
-		err := rtrwGeoDb.Where("ST_Within(ST_SetSRID(ST_MakePoint(?, ?), 4326), geojson)", lng, lat).Where("rtrw_id IN ?", ids).Select("rtrw_geojson.*, ST_AsGeoJSON(geojson) as geojson").Find(&rtrwGeojson).Error
+		rtrwGeoDb = rtrwGeoDb.Where("ST_Within(ST_SetSRID(ST_MakePoint(?, ?), 4326), geojson)", lng, lat)
+		if len(ids) > 0 {
+			rtrwGeoDb = rtrwGeoDb.Where("rtrw_id IN ?", ids)
+		}
+		err := rtrwGeoDb.Select("rtrw_geojson.*, ST_AsGeoJSON(geojson) as geojson").Find(&rtrwGeojson).Error
 		if err != nil {
 			if err != nil {
 				log.Println(err)
