@@ -1,6 +1,7 @@
 package front
 
 import (
+	"encoding/json"
 	"fmt"
 	"gis_map_info/app/model"
 	"gis_map_info/app/service"
@@ -94,13 +95,30 @@ func RdtrController() RdtrControllerType {
 
 	getByPosition := func(ctx *gin.Context) {
 		latlng := ctx.Param("latlng")
+		ids_query := ctx.Query("ids")
+
+		// Declare a variable to hold the slice of strings (or int)
+		var ids []int64
+		log.Println("ids_query :: ", ids_query)
+		if ids_query != "" {
+			// Unmarshal the JSON string into a slice
+			err := json.Unmarshal([]byte(ids_query), &ids)
+			if err != nil {
+				log.Printf("Error parsing ids: %v", err)
+				ctx.JSON(400, gin.H{
+					"error": "invalid JSON format",
+				})
+				return
+			}
+		}
+
 		latlngArr := strings.Split(latlng, ",")
 		lat := latlngArr[0]
 		lng := latlngArr[1]
 
 		rdtrGeojson := []model.RdtrGeojsonView{}
 		rdtrGeoDb := RdtrGeojsonService.Gets()
-		err := rdtrGeoDb.Where("ST_Within(ST_SetSRID(ST_MakePoint(?, ?), 4326), geojson)", lng, lat).Select("rdtr_geojson.*, ST_AsGeoJSON(geojson) as geojson").Find(&rdtrGeojson).Error
+		err := rdtrGeoDb.Where("ST_Within(ST_SetSRID(ST_MakePoint(?, ?), 4326), geojson)", lng, lat).Where("rdtr_id IN ?", ids).Select("rdtr_geojson.*, ST_AsGeoJSON(geojson) as geojson").Find(&rdtrGeojson).Error
 		if err != nil {
 			log.Println(err)
 			ctx.JSON(200, gin.H{
