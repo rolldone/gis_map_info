@@ -48,6 +48,22 @@ func CORSMiddleware() gin.HandlerFunc {
 }
 
 func main() {
+	args := os.Args
+	if len(args) > 1 {
+		fmt.Println("Received arguments:")
+	} else {
+		fmt.Println("No arguments provided.")
+		// Create the PID file
+		pid := os.Getpid()
+		err := os.WriteFile("pid.txt", []byte(fmt.Sprintf("%d", pid)), 0644)
+		if err != nil {
+			fmt.Println("Error creating PID file:", err)
+			return
+		}
+
+		// Your main program logic here
+		fmt.Println("PID:", pid)
+	}
 
 	// Init App Support
 	app_support.Init()
